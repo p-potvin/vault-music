@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault Music — Streaming & Metadata Server</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="vault-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🎵</div>
+                <div class="logo-text">
+                    <span class="brand">Vault Music</span>
+                    <span class="badge">v1.0</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="tracks">
+                    <span class="icon">🎼</span> Tracks
+                </button>
+                <button class="nav-item" data-tab="albums">
+                    <span class="icon">💿</span> Albums
+                </button>
+                <button class="nav-item" data-tab="artists">
+                    <span class="icon">🎤</span> Artists
+                </button>
+                <button class="nav-item" data-tab="metadata">
+                    <span class="icon">✨</span> Metadata & MB
+                </button>
+                <button class="nav-item" data-tab="downloads">
+                    <span class="icon">⚡</span> Search & Download
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="/docs" target="_blank" class="api-docs-link">
+                    <span class="icon">📖</span> OpenAPI / Swagger
+                </a>
+                <div class="server-status" id="server-status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">Tailnet Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="topbar">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-input" placeholder="Search songs, artists, albums...">
+                </div>
+
+                <div class="topbar-actions">
+                    <button id="btn-scan" class="btn btn-secondary">
+                        <span>🔄</span> Scan Library
+                    </button>
+                    <button id="btn-populate-quick" class="btn btn-primary">
+                        <span>✨</span> Populate Metadata
+                    </button>
+                </div>
+            </header>
+
+            <!-- Tab Panels -->
+            <div class="content-body">
+                <!-- Tracks Tab -->
+                <section id="tab-tracks" class="tab-panel active">
+                    <div class="section-header">
+                        <h2>All Tracks (<span id="tracks-count">0</span>)</h2>
+                        <div class="sort-controls">
+                            <label>Sort by:</label>
+                            <select id="tracks-sort">
+                                <option value="title">Title</option>
+                                <option value="artist">Artist</option>
+                                <option value="album">Album</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="tracks-table">
+                            <thead>
+                                <tr>
+                                    <th width="40">#</th>
+                                    <th>Title</th>
+                                    <th>Artist</th>
+                                    <th>Album</th>
+                                    <th>Year</th>
+                                    <th width="100">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracks-list">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Albums Tab -->
+                <section id="tab-albums" class="tab-panel">
+                    <div class="section-header">
+                        <h2>Albums (<span id="albums-count">0</span>)</h2>
+                    </div>
+                    <div class="albums-grid" id="albums-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Artists Tab -->
+                <section id="tab-artists" class="tab-panel">
+                    <div class="section-header">
+                        <h2>Artists (<span id="artists-count">0</span>)</h2>
+                    </div>
+                    <div class="artists-grid" id="artists-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Metadata & MusicBrainz Tab -->
+                <section id="tab-metadata" class="tab-panel">
+                    <div class="section-header">
+                        <h2>MusicBrainz Metadata Engine</h2>
+                    </div>
+                    <div class="metadata-dashboard">
+                        <div class="meta-card">
+                            <h3>Local SQLite Dump Engine</h3>
+                            <div class="card-status" id="meta-db-status">Status: Checking...</div>
+                            <p class="card-desc">0ms sub-millisecond offline lookup using PostgreSQL TSV dumps.</p>
+                        </div>
+                        <div class="meta-card">
+                            <h3>Metadata Populator Job</h3>
+                            <div class="card-status" id="meta-job-status">Idle</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="meta-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="meta-stats" id="meta-stats-text">0 / 0 matched</div>
+                            <div class="card-actions">
+                                <button id="btn-start-populate" class="btn btn-primary">Start Metadata Run</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Search & Download Tab -->
+                <section id="tab-downloads" class="tab-panel">
+                    <div class="section-header">
+                        <h2>Search & Download Tracks (Jackett / qBittorrent)</h2>
+                    </div>
+                    <div class="download-search-box">
+                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents...">
+                        <button id="btn-search-torrents" class="btn btn-primary">Search Indexers</button>
+                    </div>
+
+                    <div class="torrents-results-container">
+                        <h3>Search Results</h3>
+                        <div class="table-container">
+                            <table class="tracks-table">
+                                <thead>
+                                    <tr>
+                                        <th>Release Name</th>
+                                        <th>Tracker</th>
+                                        <th>Size</th>
+                                        <th>Seeds</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="torrents-results-list">
+                                    <tr><td colspan="5" style="text-align: center; color: #8b949e;">Enter a query above to search Jackett / Comet</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="active-downloads-container" style="margin-top: 24px;">
+                        <h3>Active qBittorrent Downloads</h3>
+                        <div class="table-container">
+                            <table class="tracks-table">
+                                <thead>
+                                    <tr>
+                                        <th>Torrent</th>
+                                        <th>Progress</th>
+                                        <th>Speed</th>
+                                        <th>State</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="downloads-queue-list">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Bottom Audio Player Bar -->
+            <div class="player-bar" id="player-bar">
+                <div class="player-track-info">
+                    <div class="player-art" id="player-art">🎵</div>
+                    <div class="player-meta">
+                        <div class="player-title" id="player-title">No track selected</div>
+                        <div class="player-artist" id="player-artist">Vault Music Server</div>
+                    </div>
+                </div>
+
+                <div class="player-controls-center">
+                    <div class="player-buttons">
+                        <button id="btn-prev" class="p-btn">⏮</button>
+                        <button id="btn-play-pause" class="p-btn play-btn">▶</button>
+                        <button id="btn-next" class="p-btn">⏭</button>
+                    </div>
+                    <div class="player-timeline">
+                        <span id="current-time">0:00</span>
+                        <input type="range" id="seek-bar" min="0" max="100" value="0">
+                        <span id="duration-time">0:00</span>
+                    </div>
+                </div>
+
+                <div class="player-controls-right">
+                    <span class="vol-icon">🔊</span>
+                    <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1">
+                </div>
+
+                <audio id="audio-element" preload="none"></audio>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
