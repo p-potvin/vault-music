@@ -1,46 +1,46 @@
 /* ==========================================================================
-   Vault Music — Dual Phone & Desktop Design (Vaultsqware Obsidian & Iris)
+   Vault Music — Apple Music Interface Styled with Vaultsqware (Obsidian & Iris)
    ========================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 :root {
     /* Typography */
-    --vwsq-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --vwsq-font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
     --vwsq-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
     /* Obsidian Console Surfaces */
-    --vwsq-console-bg: #0a0c11;
-    --vwsq-console-surface: #11141b;
-    --vwsq-console-sunken: #070810;
-    --vwsq-console-raised: #191d27;
-    --vwsq-console-elevated: #242935;
-    --vwsq-console-active: #323847;
-    --vwsq-console-hover: #1f2430;
+    --vwsq-console-bg: #07090e;
+    --vwsq-console-surface: #10131b;
+    --vwsq-console-sunken: #06070b;
+    --vwsq-console-raised: #181c26;
+    --vwsq-console-elevated: #232835;
+    --vwsq-console-active: #2f3545;
+    --vwsq-console-hover: #1c212e;
 
     /* Text Tints */
     --vwsq-console-text: #bac2d2;
     --vwsq-console-text-secondary: rgba(186, 194, 210, 0.72);
     --vwsq-console-text-dim: rgba(186, 194, 210, 0.46);
-    --vwsq-console-text-bright: #e6eaf2;
+    --vwsq-console-text-bright: #ffffff;
 
     /* Borders */
-    --vwsq-console-border: rgba(255, 255, 255, 0.07);
-    --vwsq-console-border-strong: rgba(255, 255, 255, 0.14);
+    --vwsq-console-border: rgba(255, 255, 255, 0.08);
+    --vwsq-console-border-strong: rgba(255, 255, 255, 0.16);
 
     /* Iris Primary Accent */
     --vwsq-iris-500: #6e7bf2;
     --vwsq-iris-400: #8189f5;
     --vwsq-iris-300: #98a1f7;
     --vwsq-iris: var(--vwsq-iris-500);
-    --vwsq-iris-soft: rgba(110, 123, 242, 0.14);
-    --vwsq-iris-softer: rgba(110, 123, 242, 0.07);
-    --vwsq-iris-glow: rgba(110, 123, 242, 0.35);
+    --vwsq-iris-soft: rgba(110, 123, 242, 0.16);
+    --vwsq-iris-softer: rgba(110, 123, 242, 0.08);
+    --vwsq-iris-glow: rgba(110, 123, 242, 0.4);
 
     /* Coral Accent */
     --vwsq-coral-500: #ff8a6b;
     --vwsq-coral: var(--vwsq-coral-500);
-    --vwsq-coral-soft: rgba(255, 138, 107, 0.14);
+    --vwsq-coral-soft: rgba(255, 138, 107, 0.16);
 
     /* Signals */
     --vwsq-signal-online: #56d98d;
@@ -48,10 +48,11 @@
     --vwsq-signal-warning: #e9b054;
     --vwsq-signal-error: #ef5350;
 
-    /* Geometry */
-    --vwsq-radius-sm: 4px;
-    --vwsq-radius-md: 8px;
-    --vwsq-radius-lg: 12px;
+    /* Apple Music Radii */
+    --vwsq-radius-sm: 6px;
+    --vwsq-radius-md: 10px;
+    --vwsq-radius-lg: 16px;
+    --vwsq-radius-xl: 22px;
 }
 
 * {
@@ -84,33 +85,33 @@ body {
 /* DESKTOP SIDEBAR                                          */
 /* ======================================================== */
 .desktop-sidebar {
-    width: 250px;
+    width: 260px;
     background: var(--vwsq-console-surface);
     border-right: 1px solid var(--vwsq-console-border);
     display: flex;
     flex-direction: column;
-    padding: 16px 14px;
-    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.35);
+    padding: 20px 16px;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.4);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 20px;
     padding: 0 6px;
 }
 
 .logo-icon {
-    font-size: 22px;
+    font-size: 24px;
     filter: drop-shadow(0 0 10px var(--vwsq-iris-glow));
 }
 
 .logo-text .brand {
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: 800;
+    font-size: 16px;
     color: var(--vwsq-console-text-bright);
-    letter-spacing: -0.3px;
+    letter-spacing: -0.4px;
     display: block;
 }
 
@@ -124,13 +125,12 @@ body {
     border: 1px solid rgba(110, 123, 242, 0.25);
 }
 
-/* Active Device Profile Card in Sidebar */
 .device-profile-card {
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     border-radius: var(--vwsq-radius-md);
-    padding: 10px;
-    margin-bottom: 16px;
+    padding: 12px;
+    margin-bottom: 20px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
@@ -143,12 +143,12 @@ body {
 .device-card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 8px;
 }
 
 .device-icon {
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .device-texts {
@@ -157,8 +157,8 @@ body {
 }
 
 .device-name {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--vwsq-console-text-bright);
     display: block;
     white-space: nowrap;
@@ -177,8 +177,9 @@ body {
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-secondary);
     font-size: 11px;
+    font-weight: 600;
     width: 100%;
-    padding: 4px 0;
+    padding: 6px 0;
     border-radius: var(--vwsq-radius-sm);
     cursor: pointer;
 }
@@ -191,7 +192,7 @@ body {
 .desktop-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     flex: 1;
     overflow-y: auto;
 }
@@ -203,9 +204,9 @@ body {
     background: transparent;
     border: 1px solid transparent;
     color: var(--vwsq-console-text-secondary);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 9px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 14px;
     border-radius: var(--vwsq-radius-md);
     cursor: pointer;
     transition: all 0.15s ease;
@@ -229,12 +230,13 @@ body {
     background: var(--vwsq-console-raised);
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-bright);
-    padding: 8px 10px;
-    border-radius: var(--vwsq-radius-sm);
-    font-size: 11px;
+    padding: 10px;
+    border-radius: var(--vwsq-radius-md);
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     transition: all 0.15s ease;
 }
 
@@ -245,10 +247,10 @@ body {
 
 .sidebar-footer {
     border-top: 1px solid var(--vwsq-console-border);
-    padding-top: 14px;
+    padding-top: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .api-docs-link {
@@ -281,38 +283,38 @@ body {
 }
 
 .status-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
 }
 
 .status-dot.online {
     background: var(--vwsq-signal-online);
-    box-shadow: 0 0 8px rgba(86, 217, 141, 0.7);
+    box-shadow: 0 0 10px rgba(86, 217, 141, 0.8);
 }
 
 /* ======================================================== */
-/* MAIN VIEWPORT                                            */
+/* MAIN VIEWPORT (Apple Music Layout)                       */
 /* ======================================================== */
 .main-viewport {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: radial-gradient(circle at top right, rgba(110, 123, 242, 0.05), transparent 45%), var(--vwsq-console-bg);
+    background: radial-gradient(circle at top right, rgba(110, 123, 242, 0.08), transparent 45%), var(--vwsq-console-bg);
     position: relative;
     overflow: hidden;
 }
 
 /* Desktop Header */
 .desktop-header {
-    height: 60px;
+    height: 64px;
     border-bottom: 1px solid var(--vwsq-console-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
-    background: rgba(17, 20, 27, 0.85);
-    backdrop-filter: blur(12px);
+    padding: 0 28px;
+    background: rgba(16, 19, 27, 0.85);
+    backdrop-filter: blur(16px);
 }
 
 .search-box {
@@ -321,14 +323,14 @@ body {
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     border-radius: var(--vwsq-radius-md);
-    padding: 6px 12px;
-    width: 340px;
-    gap: 8px;
+    padding: 8px 14px;
+    width: 360px;
+    gap: 10px;
 }
 
 .search-box:focus-within {
     border-color: var(--vwsq-iris-500);
-    box-shadow: 0 0 8px var(--vwsq-iris-glow);
+    box-shadow: 0 0 10px var(--vwsq-iris-glow);
 }
 
 .search-box input {
@@ -336,21 +338,21 @@ body {
     border: none;
     outline: none;
     color: var(--vwsq-console-text-bright);
-    font-size: 13px;
+    font-size: 14px;
     font-family: var(--vwsq-font-sans);
     width: 100%;
 }
 
 .desktop-header-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
 }
 
 .btn {
     border: 1px solid transparent;
-    padding: 7px 14px;
-    border-radius: var(--vwsq-radius-sm);
-    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: var(--vwsq-radius-md);
+    font-size: 13px;
     font-weight: 600;
     font-family: var(--vwsq-font-sans);
     cursor: pointer;
@@ -363,7 +365,7 @@ body {
 .btn-primary {
     background: var(--vwsq-iris-500);
     color: #ffffff;
-    box-shadow: 0 0 10px var(--vwsq-iris-glow);
+    box-shadow: 0 0 12px var(--vwsq-iris-glow);
 }
 
 .btn-primary:hover {
@@ -380,92 +382,67 @@ body {
     background: var(--vwsq-console-hover);
 }
 
-/* Mobile Header (Hidden on desktop by default) */
-.mobile-header {
+/* Mobile Top iOS Bar */
+.mobile-top-bar {
     display: none;
-    padding: 12px 16px;
-    background: var(--vwsq-console-surface);
+    padding: 14px 20px;
+    padding-top: calc(14px + env(safe-area-inset-top, 0));
+    background: rgba(16, 19, 27, 0.75);
+    backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--vwsq-console-border);
-    flex-direction: column;
-    gap: 10px;
-}
-
-.mobile-header-top {
-    display: flex;
     align-items: center;
     justify-content: space-between;
+    z-index: 80;
 }
 
-.mobile-brand {
+.ios-profile-pill {
     display: flex;
     align-items: center;
     gap: 8px;
+    background: var(--vwsq-console-raised);
+    border: 1px solid var(--vwsq-console-border);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vwsq-console-text-bright);
     cursor: pointer;
 }
 
-.m-brand-texts {
-    display: flex;
-    flex-direction: column;
+.pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--vwsq-signal-online);
 }
 
-.brand-title {
-    font-weight: 700;
-    font-size: 15px;
-    color: var(--vwsq-console-text-bright);
-}
-
-.m-device-tag {
-    font-size: 10px;
-    font-family: var(--vwsq-font-mono);
+.pill-arrow {
+    font-size: 11px;
     color: var(--vwsq-iris-300);
 }
 
-.mobile-header-actions {
-    display: flex;
-    gap: 6px;
-}
-
-.icon-btn {
-    background: var(--vwsq-console-sunken);
+.ios-circle-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--vwsq-console-raised);
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-bright);
-    width: 34px;
-    height: 34px;
-    border-radius: var(--vwsq-radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
+    font-size: 15px;
     cursor: pointer;
 }
 
-.mobile-search-bar {
-    display: flex;
-    align-items: center;
-    background: var(--vwsq-console-sunken);
-    border: 1px solid var(--vwsq-console-border);
-    border-radius: var(--vwsq-radius-md);
-    padding: 8px 12px;
-    gap: 8px;
-}
-
-.mobile-search-bar input {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--vwsq-console-text-bright);
-    font-size: 13px;
-    width: 100%;
-}
-
 /* ======================================================== */
-/* SCROLL AREA & TAB CONTENT                                */
+/* APPLE MUSIC CONTENT AREA & TYPOGRAPHY                    */
 /* ======================================================== */
 .content-scroll-area {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
-    padding-bottom: 140px;
+    padding: 24px 28px;
+    padding-bottom: 160px; /* room for floating mini player & bottom bar */
     -webkit-overflow-scrolling: touch;
 }
 
@@ -477,163 +454,158 @@ body {
     display: block;
 }
 
-.section-header {
+.ios-page-header {
+    margin-bottom: 20px;
+}
+
+.ios-page-header.flex-between {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+
+.ios-date-badge {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: var(--vwsq-console-text-dim);
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.ios-large-title {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    color: var(--vwsq-console-text-bright);
+    line-height: 1.15;
+}
+
+.ios-sub-count {
+    font-size: 14px;
+    color: var(--vwsq-console-text-dim);
+    margin-top: 4px;
+    display: block;
+}
+
+.ios-section {
+    margin-bottom: 28px;
+}
+
+.ios-section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 14px;
 }
 
-.section-header h2 {
-    font-size: 17px;
+.ios-section-title {
+    font-size: 20px;
     font-weight: 700;
+    letter-spacing: -0.3px;
     color: var(--vwsq-console-text-bright);
 }
 
-.text-link-btn {
+.ios-link-btn {
     background: transparent;
     border: none;
-    color: var(--vwsq-iris-300);
-    font-size: 12px;
+    color: var(--vwsq-iris-400);
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
 }
 
-.text-link-btn:hover {
-    text-decoration: underline;
+.ios-pill-btn {
+    background: var(--vwsq-iris-500);
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 0 10px var(--vwsq-iris-glow);
+    cursor: pointer;
 }
 
-/* Home Hero Card */
-.home-hero {
-    background: linear-gradient(135deg, rgba(110, 123, 242, 0.15), rgba(17, 20, 27, 0.9));
-    border: 1px solid var(--vwsq-console-border);
-    border-radius: var(--vwsq-radius-lg);
-    padding: 20px;
-    margin-bottom: 24px;
+.ios-search-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-}
-
-.home-hero h1 {
-    font-size: 18px;
-    color: var(--vwsq-console-text-bright);
-    margin-bottom: 4px;
-}
-
-.home-sub {
-    font-size: 12px;
-    color: var(--vwsq-console-text-secondary);
-}
-
-/* Pinned Playlists Grid */
-.pinned-playlists-grid, .playlists-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 14px;
-}
-
-.playlist-card {
-    background: var(--vwsq-console-surface);
+    background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     border-radius: var(--vwsq-radius-md);
-    padding: 14px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    padding: 10px 14px;
+    gap: 10px;
+    margin-bottom: 14px;
 }
 
-.playlist-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--vwsq-iris-500);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-
-.pl-card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.pl-card-icon {
-    font-size: 24px;
-}
-
-.pl-card-pin-btn {
+.ios-search-bar input {
     background: transparent;
     border: none;
-    font-size: 14px;
-    cursor: pointer;
-    color: var(--vwsq-console-text-dim);
-}
-
-.pl-card-pin-btn.pinned {
-    color: var(--vwsq-coral-500);
-}
-
-.pl-card-title {
-    font-weight: 700;
-    font-size: 14px;
+    outline: none;
     color: var(--vwsq-console-text-bright);
-    margin-bottom: 4px;
+    font-size: 15px;
+    width: 100%;
 }
 
-.pl-card-owner {
-    font-size: 11px;
-    color: var(--vwsq-console-text-dim);
-}
-
-.pl-card-meta {
-    font-size: 11px;
-    font-family: var(--vwsq-font-mono);
-    color: var(--vwsq-iris-300);
-    margin-top: 10px;
-}
-
-/* Track Rows */
+/* ======================================================== */
+/* BIG TOUCH TRACK ROWS (Apple Music Song List)             */
+/* ======================================================== */
 .tracks-container {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .track-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 12px;
+    padding: 10px 14px;
+    min-height: 64px;
     background: var(--vwsq-console-surface);
     border: 1px solid var(--vwsq-console-border);
     border-radius: var(--vwsq-radius-md);
     cursor: pointer;
-    transition: background 0.12s ease;
+    transition: all 0.15s ease;
 }
 
 .track-row:hover {
     background: var(--vwsq-console-hover);
+    border-color: var(--vwsq-console-border-strong);
 }
 
 .track-row.playing {
     background: var(--vwsq-iris-softer);
     border-color: var(--vwsq-iris-500);
+    box-shadow: inset 0 0 12px var(--vwsq-iris-soft);
 }
 
 .track-main-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex: 1;
     min-width: 0;
 }
 
-.track-number {
-    font-family: var(--vwsq-font-mono);
-    font-size: 12px;
-    color: var(--vwsq-console-text-dim);
-    width: 24px;
+.track-art-thumb {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--vwsq-radius-sm);
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.track-art-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .track-texts {
@@ -642,36 +614,38 @@ body {
 }
 
 .track-title {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
     color: var(--vwsq-console-text-bright);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -0.2px;
 }
 
 .track-sub {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--vwsq-console-text-dim);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 
 .track-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .track-action-btn {
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-secondary);
-    padding: 6px 9px;
+    padding: 8px 12px;
     border-radius: var(--vwsq-radius-sm);
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -689,43 +663,112 @@ body {
 }
 
 .track-action-btn.cached {
-    background: rgba(86, 217, 141, 0.12);
+    background: rgba(86, 217, 141, 0.14);
     border-color: var(--vwsq-signal-online);
     color: var(--vwsq-signal-online);
 }
 
-/* Grids */
+/* ======================================================== */
+/* BIG ALBUMS & PLAYLISTS GRID (Apple Music Cards)          */
+/* ======================================================== */
+.pinned-playlists-grid, .playlists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 16px;
+}
+
+.playlist-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-lg);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.playlist-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--vwsq-iris-500);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.pl-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.pl-card-icon {
+    font-size: 32px;
+}
+
+.pl-card-pin-btn {
+    background: transparent;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--vwsq-console-text-dim);
+}
+
+.pl-card-pin-btn.pinned {
+    color: var(--vwsq-coral-500);
+}
+
+.pl-card-title {
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--vwsq-console-text-bright);
+    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+}
+
+.pl-card-owner {
+    font-size: 12px;
+    color: var(--vwsq-console-text-dim);
+}
+
+.pl-card-meta {
+    font-size: 12px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-iris-300);
+    margin-top: 12px;
+}
+
 .albums-grid, .artists-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
 }
 
 .album-card, .artist-card {
     background: var(--vwsq-console-surface);
     border: 1px solid var(--vwsq-console-border);
-    border-radius: var(--vwsq-radius-md);
-    padding: 10px;
+    border-radius: var(--vwsq-radius-lg);
+    padding: 12px;
     cursor: pointer;
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease;
 }
 
 .album-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     border-color: var(--vwsq-iris-500);
 }
 
 .album-art-wrap {
     width: 100%;
     aspect-ratio: 1/1;
-    border-radius: var(--vwsq-radius-sm);
+    border-radius: var(--vwsq-radius-md);
     background: var(--vwsq-console-sunken);
     overflow: hidden;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 36px;
 }
 
 .album-art-wrap img {
@@ -735,8 +778,8 @@ body {
 }
 
 .album-title {
-    font-weight: 600;
-    font-size: 12px;
+    font-weight: 700;
+    font-size: 14px;
     color: var(--vwsq-console-text-bright);
     white-space: nowrap;
     overflow: hidden;
@@ -744,63 +787,68 @@ body {
 }
 
 .album-artist {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--vwsq-console-text-dim);
     margin-top: 2px;
 }
 
 /* ======================================================== */
-/* MINI AUDIO PLAYER & BOTTOM NAV                           */
+/* APPLE MUSIC FLOATING MINI PLAYER                         */
 /* ======================================================== */
-.mini-player {
+.floating-mini-player {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 74px; /* floats cleanly above Apple Tab Bar */
+    left: 16px;
+    right: 16px;
     height: 64px;
-    background: rgba(17, 20, 27, 0.95);
-    border-top: 1px solid var(--vwsq-console-border);
-    backdrop-filter: blur(20px);
+    background: rgba(24, 28, 38, 0.92);
+    border: 1px solid var(--vwsq-console-border-strong);
+    border-radius: var(--vwsq-radius-lg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
-    z-index: 90;
+    z-index: 95;
     cursor: pointer;
+    overflow: hidden;
 }
 
 .mini-player-progress {
     height: 2px;
-    background: var(--vwsq-iris-500);
+    background: linear-gradient(90deg, var(--vwsq-iris-500), var(--vwsq-coral-500));
     width: 0%;
     transition: width 0.2s linear;
 }
 
-.mini-player-content {
+.mini-player-body {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
+    padding: 0 14px;
 }
 
 .mini-track-info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     flex: 1;
     min-width: 0;
 }
 
 .mini-art {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border-radius: var(--vwsq-radius-sm);
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    font-size: 20px;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .mini-art img {
@@ -815,8 +863,8 @@ body {
 }
 
 .mini-title {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
     color: var(--vwsq-console-text-bright);
     white-space: nowrap;
     overflow: hidden;
@@ -824,83 +872,94 @@ body {
 }
 
 .mini-artist {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--vwsq-console-text-dim);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-top: 1px;
 }
 
 .mini-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
-.ctrl-btn {
+.ios-mini-btn {
     background: transparent;
     border: none;
     color: var(--vwsq-console-text-bright);
-    font-size: 16px;
+    font-size: 20px;
     cursor: pointer;
     padding: 6px;
 }
 
-.play-circle {
-    width: 34px;
-    height: 34px;
+.ios-mini-play-btn {
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: var(--vwsq-iris-500);
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #ffffff;
-    box-shadow: 0 0 10px var(--vwsq-iris-glow);
+    font-size: 18px;
+    box-shadow: 0 0 12px var(--vwsq-iris-glow);
+    cursor: pointer;
 }
 
-.mobile-bottom-nav {
+/* ======================================================== */
+/* APPLE MUSIC BOTTOM TAB BAR                               */
+/* ======================================================== */
+.apple-bottom-bar {
     display: none;
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 64px;
     padding-bottom: env(safe-area-inset-bottom, 0);
-    background: var(--vwsq-console-surface);
+    background: rgba(16, 19, 27, 0.94);
     border-top: 1px solid var(--vwsq-console-border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     z-index: 100;
     justify-content: space-around;
     align-items: center;
 }
 
-.m-nav-item {
+.apple-tab {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     background: transparent;
     border: none;
     color: var(--vwsq-console-text-dim);
     cursor: pointer;
     flex: 1;
     padding: 6px 0;
+    transition: color 0.15s ease;
 }
 
-.m-nav-item.active {
+.apple-tab.active {
     color: var(--vwsq-iris-300);
 }
 
-.m-icon {
-    font-size: 16px;
+.tab-icon {
+    font-size: 20px;
 }
 
-.m-label {
+.tab-label {
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: -0.1px;
 }
 
 /* ======================================================== */
-/* NOW PLAYING FULL SHEET                                   */
+/* FULLSCREEN APPLE MUSIC NOW PLAYING SHEET                 */
 /* ======================================================== */
 .now-playing-sheet {
     position: fixed;
@@ -908,33 +967,54 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--vwsq-console-bg);
+    background: linear-gradient(180deg, rgba(24, 28, 38, 0.98), #07090e);
     z-index: 200;
     display: flex;
     flex-direction: column;
-    padding: 24px 20px;
+    padding: 20px 24px;
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.7);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.85);
 }
 
 .now-playing-sheet.open {
     transform: translateY(-100%);
 }
 
+.sheet-grabber-bar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.grabber-pill {
+    width: 38px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 3px;
+}
+
 .sheet-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .sheet-title {
     font-size: 13px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     font-family: var(--vwsq-font-mono);
     color: var(--vwsq-console-text-dim);
+}
+
+.sheet-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--vwsq-console-text-bright);
+    font-size: 22px;
+    cursor: pointer;
 }
 
 .sheet-art-container {
@@ -946,17 +1026,17 @@ body {
 }
 
 .sheet-art {
-    width: 260px;
-    height: 260px;
-    border-radius: var(--vwsq-radius-lg);
+    width: 290px;
+    height: 290px;
+    border-radius: var(--vwsq-radius-xl);
     background: var(--vwsq-console-surface);
-    border: 1px solid var(--vwsq-console-border);
+    border: 1px solid var(--vwsq-console-border-strong);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 80px;
+    font-size: 90px;
     overflow: hidden;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.75);
 }
 
 .sheet-art img {
@@ -965,59 +1045,82 @@ body {
     object-fit: cover;
 }
 
-.sheet-meta {
-    margin: 16px 0;
-    text-align: center;
+.sheet-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0 14px 0;
+}
+
+.sheet-meta-texts {
+    flex: 1;
+    min-width: 0;
 }
 
 .sheet-song-title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 22px;
+    font-weight: 800;
     color: var(--vwsq-console-text-bright);
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sheet-artist-name {
-    font-size: 13px;
+    font-size: 15px;
     color: var(--vwsq-console-text-dim);
     margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sheet-heart-btn {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
 }
 
 .sheet-scrubber {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+}
+
+.sheet-scrubber input[type="range"] {
+    width: 100%;
+    height: 6px;
+    accent-color: var(--vwsq-iris-400);
+    cursor: pointer;
 }
 
 .scrub-times {
     display: flex;
     justify-content: space-between;
-    font-size: 11px;
+    font-size: 12px;
     font-family: var(--vwsq-font-mono);
     color: var(--vwsq-console-text-dim);
-    margin-bottom: 6px;
+    margin-top: 8px;
 }
 
-.sheet-scrubber input[type="range"] {
-    width: 100%;
-    accent-color: var(--vwsq-iris-500);
-    cursor: pointer;
-}
-
-.sheet-controls {
+.sheet-transport {
     display: flex;
     align-items: center;
     justify-content: space-around;
+    margin-bottom: 20px;
 }
 
-.sheet-ctrl-btn {
+.sheet-transport-btn {
     background: transparent;
     border: none;
     color: var(--vwsq-console-text-bright);
-    font-size: 24px;
+    font-size: 32px;
     cursor: pointer;
 }
 
-.sheet-play-btn {
-    width: 56px;
-    height: 56px;
+.sheet-main-play-btn {
+    width: 68px;
+    height: 68px;
     border-radius: 50%;
     background: var(--vwsq-iris-500);
     color: #ffffff;
@@ -1025,22 +1128,25 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 0 20px var(--vwsq-iris-glow);
+    font-size: 28px;
+    box-shadow: 0 0 24px var(--vwsq-iris-glow);
     cursor: pointer;
 }
 
-.sheet-sub-btn {
-    background: var(--vwsq-console-surface);
+.sheet-bottom-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.sheet-action-pill {
+    background: var(--vwsq-console-raised);
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-bright);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
     cursor: pointer;
 }
 
@@ -1053,8 +1159,8 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(12px);
     z-index: 300;
     display: none;
     align-items: center;
@@ -1072,7 +1178,7 @@ body {
     border-radius: var(--vwsq-radius-lg);
     width: 100%;
     max-width: 480px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
     overflow: hidden;
 }
 
@@ -1080,13 +1186,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px;
+    padding: 18px 22px;
     border-bottom: 1px solid var(--vwsq-console-border);
 }
 
 .modal-header h3 {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 16px;
+    font-weight: 800;
     color: var(--vwsq-console-text-bright);
 }
 
@@ -1094,35 +1200,35 @@ body {
     background: transparent;
     border: none;
     color: var(--vwsq-console-text-dim);
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 22px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 16px;
 }
 
 .form-group label {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--vwsq-console-text-secondary);
 }
 
 .form-group input, .form-group select {
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
-    border-radius: var(--vwsq-radius-sm);
-    padding: 8px 12px;
+    border-radius: var(--vwsq-radius-md);
+    padding: 10px 14px;
     color: var(--vwsq-console-text-bright);
     font-family: var(--vwsq-font-sans);
-    font-size: 13px;
+    font-size: 14px;
     outline: none;
 }
 
@@ -1131,30 +1237,30 @@ body {
 }
 
 .device-meta-info {
-    font-size: 11px;
+    font-size: 12px;
     font-family: var(--vwsq-font-mono);
     color: var(--vwsq-console-text-dim);
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
 
 .modal-divider {
     border: none;
     border-top: 1px solid var(--vwsq-console-border);
-    margin: 16px 0;
+    margin: 18px 0;
 }
 
 .modal-subtext {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--vwsq-console-text-dim);
-    margin-bottom: 12px;
-    line-height: 1.4;
+    margin-bottom: 14px;
+    line-height: 1.5;
 }
 
 .modal-footer {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
-    padding: 14px 20px;
+    gap: 10px;
+    padding: 16px 22px;
     border-top: 1px solid var(--vwsq-console-border);
     background: var(--vwsq-console-sunken);
 }
@@ -1163,7 +1269,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 300px;
+    max-height: 320px;
     overflow-y: auto;
 }
 
@@ -1171,10 +1277,10 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: var(--vwsq-console-raised);
     border: 1px solid var(--vwsq-console-border);
-    border-radius: var(--vwsq-radius-sm);
+    border-radius: var(--vwsq-radius-md);
     cursor: pointer;
 }
 
@@ -1184,7 +1290,7 @@ body {
 }
 
 /* ======================================================== */
-/* ADAPTIVE / MOBILE QUERY                                  */
+/* ADAPTIVE APPLE MUSIC MOBILE VIEWPORT                     */
 /* ======================================================== */
 @media (max-width: 768px), (pointer: coarse) {
     .desktop-sidebar {
@@ -1193,22 +1299,18 @@ body {
     .desktop-header {
         display: none;
     }
-    .mobile-header {
+    .mobile-top-bar {
         display: flex;
     }
-    .mobile-bottom-nav {
+    .apple-bottom-bar {
         display: flex;
     }
-    .mini-player {
-        bottom: 60px;
+    .floating-mini-player {
+        bottom: 74px;
     }
     .content-scroll-area {
-        padding: 14px;
-        padding-bottom: 140px;
-    }
-    .home-hero {
-        flex-direction: column;
-        align-items: flex-start;
+        padding: 18px;
+        padding-bottom: 160px;
     }
     .track-action-btn span {
         display: none;
@@ -1221,19 +1323,19 @@ body {
 .phone-mode-active .desktop-header {
     display: none !important;
 }
-.phone-mode-active .mobile-header {
+.phone-mode-active .mobile-top-bar {
     display: flex !important;
 }
-.phone-mode-active .mobile-bottom-nav {
+.phone-mode-active .apple-bottom-bar {
     display: flex !important;
 }
-.phone-mode-active .mini-player {
-    bottom: 60px !important;
+.phone-mode-active .floating-mini-player {
+    bottom: 74px !important;
 }
 .phone-mode-active {
     max-width: 440px;
     margin: 0 auto;
     border-left: 1px solid var(--vwsq-console-border);
     border-right: 1px solid var(--vwsq-console-border);
-    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }

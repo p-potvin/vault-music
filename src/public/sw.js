@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vault-music-shell-v1';
+const CACHE_NAME = 'vault-music-shell-v2';
 const ASSETS = [
     '/',
     '/index.html',
@@ -6,7 +6,10 @@ const ASSETS = [
     '/app.js',
     '/offline-db.js',
     '/manifest.json',
-    '/icon.svg'
+    '/apple-touch-icon.png',
+    '/icon-192.png',
+    '/icon-512.png',
+    '/favicon.png'
 ];
 
 self.addEventListener('install', (event) => {

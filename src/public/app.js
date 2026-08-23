@@ -1,5 +1,5 @@
 /**
- * Vault Music — Dual Phone & Desktop Audio Controller, Profiles, View Duplication & Playlists
+ * Vault Music — Apple Music Interface with Vaultsqware Obsidian & Iris
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -12,6 +12,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     let cachedTrackIds = new Set();
     let pendingTrackToAdd = null;
     const audio = document.getElementById('audio-element');
+
+    // Display formatted today date for Apple Music "Listen Now" header
+    const dateEl = document.getElementById('ios-today-date');
+    if (dateEl) {
+        const now = new Date();
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        dateEl.innerText = now.toLocaleDateString('en-US', options).toUpperCase();
+    }
 
     // Generate or retrieve unique device token in localStorage if not on Tailscale header
     let clientDeviceId = localStorage.getItem('vault_music_device_id');
@@ -72,7 +80,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const miniArtist = document.getElementById('mini-artist');
     const miniProgressBar = document.getElementById('mini-progress-bar');
     const btnMiniPlay = document.getElementById('btn-mini-play');
-    const btnMiniPrev = document.getElementById('btn-mini-prev');
     const btnMiniNext = document.getElementById('btn-mini-next');
     const btnMiniFav = document.getElementById('btn-mini-fav');
 
@@ -109,9 +116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Navigation Switcher
+    // Navigation Switcher (Desktop & Apple Tab Bars)
     window.switchTab = function(tabId) {
-        document.querySelectorAll('.nav-btn, .m-nav-item').forEach(b => {
+        document.querySelectorAll('.nav-btn, .apple-tab').forEach(b => {
             if (b.dataset.tab === tabId) b.classList.add('active');
             else b.classList.remove('active');
         });
@@ -123,13 +130,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (tabId === 'home') loadHomeTab();
         if (tabId === 'tracks') loadTracks();
         if (tabId === 'albums') loadAlbums();
-        if (tabId === 'artists') loadArtists();
         if (tabId === 'playlists') loadPlaylistsTab();
         if (tabId === 'offline') loadOfflineTab();
         if (tabId === 'downloads') loadDownloadQueue();
     };
 
-    document.querySelectorAll('.nav-btn, .m-nav-item').forEach(btn => {
+    document.querySelectorAll('.nav-btn, .apple-tab').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
@@ -146,12 +152,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await apiFetch('/api/v1/profiles/me');
             currentProfile = await res.json();
 
-            // Update UI Labels
-            const name = currentProfile.name || 'Tailscale Device';
+            const name = currentProfile.name || 'iPhone';
             document.getElementById('current-device-name').innerText = name;
-            document.getElementById('mobile-device-tag').innerText = `📱 ${name}`;
-            document.getElementById('home-greeting').innerText = `Welcome, ${name}`;
-            document.getElementById('home-device-desc').innerText = `Custom View for device ID: ${currentProfile.deviceId}`;
+            document.getElementById('mobile-device-tag').innerText = name;
             document.getElementById('device-meta-details').innerText = `Device ID: ${currentProfile.deviceId} | IP: ${currentProfile.clientIp || '100.71.101.21'}`;
             inputDeviceName.value = name;
         } catch (err) {
@@ -161,7 +164,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function openProfileModal() {
         await loadCurrentProfile();
-        // Load all other connected devices for the clone picker
         try {
             const res = await apiFetch('/api/v1/profiles');
             const devices = await res.json();
@@ -184,8 +186,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('btn-open-profile-modal').addEventListener('click', openProfileModal);
     document.getElementById('btn-mobile-open-profile').addEventListener('click', openProfileModal);
-    document.getElementById('btn-mobile-clone').addEventListener('click', openProfileModal);
-    document.getElementById('btn-home-clone-view').addEventListener('click', openProfileModal);
     document.getElementById('btn-close-profile-modal').addEventListener('click', () => profileModal.classList.remove('open'));
 
     // Save Device Name
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // =========================================================================
-    // Home Tab Rendering (Pinned Playlists & Favorites)
+    // Home Tab Rendering (Listen Now)
     // =========================================================================
 
     async function loadHomeTab() {
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (pinnedPls.length === 0) {
             pinnedPlaylistsGrid.innerHTML = `
                 <div class="empty-state" style="grid-column: 1 / -1;">
-                    No pinned playlists on this device yet. Go to <a href="#" onclick="switchTab('playlists'); return false;" style="color: var(--vwsq-iris-300);">Playlists</a> and tap the 📌 pin button!
+                    No pinned playlists on this device yet. Go to <a href="#" onclick="switchTab('playlists'); return false;" style="color: var(--vwsq-iris-400);">Playlists</a> and tap the 📌 pin button!
                 </div>
             `;
         } else {
@@ -277,9 +277,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Render Favorite Tracks
         homeFavoritesContainer.innerHTML = '';
         if (favIds.length === 0) {
-            homeFavoritesContainer.innerHTML = `<div class="empty-state">No favorite tracks yet. Tap the ❤️ button on any track to add it here!</div>`;
+            homeFavoritesContainer.innerHTML = `<div class="empty-state">No favorite songs yet. Tap the ❤️ button on any song to add it here!</div>`;
         } else {
-            // Load tracks and filter favorites
             if (tracks.length === 0) await loadTracksData();
             const favTracks = tracks.filter(t => favIds.includes(t.id));
             renderTrackList(favTracks, homeFavoritesContainer);
@@ -287,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =========================================================================
-    // Tracks Tab & Track Rendering
+    // Tracks Tab & Big Touch Track Rendering
     // =========================================================================
 
     async function loadTracksData(query = '') {
@@ -307,7 +306,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderTrackList(trackList, container) {
         container.innerHTML = '';
         if (trackList.length === 0) {
-            container.innerHTML = `<div class="empty-state">No tracks found.</div>`;
+            container.innerHTML = `<div class="empty-state">No songs found.</div>`;
             return;
         }
 
@@ -317,15 +316,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isCached = cachedTrackIds.has(t.id);
             const isFav = favIds.has(t.id);
             const isPlayingThis = currentTrackObj && currentTrackObj.id === t.id;
+            const artHtml = t.coverUrl ? `<img src="${t.coverUrl}">` : '🎵';
 
             const row = document.createElement('div');
             row.className = `track-row ${isPlayingThis ? 'playing' : ''}`;
             row.innerHTML = `
                 <div class="track-main-info">
-                    <div class="track-number">${i + 1}</div>
+                    <div class="track-art-thumb">${artHtml}</div>
                     <div class="track-texts">
                         <div class="track-title">${t.title}</div>
-                        <div class="track-sub">${t.artist} • ${t.album}</div>
+                        <div class="track-sub">${t.artist} — ${t.album}</div>
                     </div>
                 </div>
                 <div class="track-actions">
@@ -333,12 +333,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${isFav ? '❤️' : '🤍'}
                     </button>
                     <button class="track-action-btn btn-add-pl" title="Add to Playlist">
-                        <span>Add</span> +
+                        <span>+</span>
                     </button>
-                    <button class="track-action-btn btn-offline ${isCached ? 'cached' : ''}" title="Cache Offline in PWA">
+                    <button class="track-action-btn btn-offline ${isCached ? 'cached' : ''}" title="Cache Offline">
                         <span>${isCached ? 'Saved' : 'Save'}</span> 💾
                     </button>
-                    <button class="track-action-btn btn-direct-download" title="Download to iOS Files / iCloud">
+                    <button class="track-action-btn btn-direct-download" title="Download to iOS Files">
                         <span>Get</span> ⬇️
                     </button>
                 </div>
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =========================================================================
-    // Shared Playlists Management
+    // Shared Playlists Tab
     // =========================================================================
 
     async function loadPlaylistsData() {
@@ -416,7 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         playlistsGrid.innerHTML = '';
 
         if (playlists.length === 0) {
-            playlistsGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">No playlists created yet. Click "+ Create Playlist" to start!</div>`;
+            playlistsGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">No playlists created yet. Tap "+ New" to start!</div>`;
             return;
         }
 
@@ -429,13 +429,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             card.innerHTML = `
                 <div class="pl-card-top">
                     <span class="pl-card-icon">📂</span>
-                    <button class="pl-card-pin-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? 'Unpin from Device Home' : 'Pin to Device Home'}">
+                    <button class="pl-card-pin-btn ${isPinned ? 'pinned' : ''}" title="${isPinned ? 'Unpin from Home' : 'Pin to Home'}">
                         ${isPinned ? '📌' : '📍'}
                     </button>
                 </div>
                 <div class="pl-card-title">${pl.name}</div>
-                <div class="pl-card-owner">Created by ${pl.ownerName || 'Shared'}</div>
-                <div class="pl-card-meta">${pl.trackIds.length} track(s)</div>
+                <div class="pl-card-owner">by ${pl.ownerName || 'Shared'}</div>
+                <div class="pl-card-meta">${pl.trackIds.length} song(s)</div>
             `;
 
             card.addEventListener('click', () => openPlaylist(pl.id));
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pl = await res.json();
             switchTab('tracks');
             tracks = pl.tracks || [];
-            document.querySelector('#tab-tracks .section-header h2').innerHTML = `Playlist: ${pl.name} (${tracks.length})`;
+            document.querySelector('#tab-tracks .ios-large-title').innerText = pl.name;
             renderTrackList(tracks, tracksContainer);
         } catch (err) {
             alert('Failed to load playlist: ' + err.message);
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 item.className = 'picker-item';
                 item.innerHTML = `
                     <span>📂 ${pl.name}</span>
-                    <span style="font-size: 11px; color: var(--vwsq-console-text-dim);">${pl.trackIds.length} tracks</span>
+                    <span style="font-size: 12px; color: var(--vwsq-console-text-dim);">${pl.trackIds.length} songs</span>
                 `;
                 item.addEventListener('click', async () => {
                     await apiFetch(`/api/v1/profiles/playlists/${pl.id}/tracks`, {
@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         body: JSON.stringify({ trackId: pendingTrackToAdd })
                     });
                     addToPlaylistModal.classList.remove('open');
-                    alert(`✓ Track added to "${pl.name}"`);
+                    alert(`✓ Added to "${pl.name}"`);
                 });
                 playlistsPickerList.appendChild(item);
             });
@@ -529,6 +529,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('btn-close-add-pl-modal').addEventListener('click', () => addToPlaylistModal.classList.remove('open'));
+
+    // =========================================================================
+    // Offline Tab
+    // =========================================================================
+
+    async function loadOfflineTab() {
+        try {
+            const offlineTracks = await getAllOfflineTracks();
+            const usage = await getOfflineStorageUsage();
+            document.getElementById('offline-stats-summary').innerText = `${usage.count} songs • ${usage.formattedSize}`;
+
+            offlineContainer.innerHTML = '';
+            if (offlineTracks.length === 0) {
+                offlineContainer.innerHTML = `<div class="empty-state">No downloaded songs yet. Tap "Save 💾" next to any track to store it for offline playback.</div>`;
+                return;
+            }
+
+            offlineTracks.forEach((t, i) => {
+                const row = document.createElement('div');
+                row.className = 'track-row';
+                const sizeMb = (t.size / (1024 * 1024)).toFixed(1);
+                row.innerHTML = `
+                    <div class="track-main-info">
+                        <div class="track-art-thumb">💾</div>
+                        <div class="track-texts">
+                            <div class="track-title">${t.title}</div>
+                            <div class="track-sub">${t.artist} • ${sizeMb} MB</div>
+                        </div>
+                    </div>
+                    <div class="track-actions">
+                        <button class="track-action-btn" style="color: #ef4444;" title="Remove from cache">🗑️</button>
+                    </div>
+                `;
+
+                row.querySelector('.track-main-info').addEventListener('click', () => playOfflineBlob(t));
+                row.querySelector('.track-actions button').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await removeTrackOffline(t.id);
+                    await refreshCachedIds();
+                    loadOfflineTab();
+                });
+
+                offlineContainer.appendChild(row);
+            });
+        } catch (err) {
+            console.error('Failed to load offline tab:', err);
+        }
+    }
 
     // =========================================================================
     // Playback Engine & Audio Player
@@ -593,10 +641,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         btnSheetDownload.onclick = () => { window.location.href = `/api/v1/download/${t.id}`; };
         btnSheetOffline.onclick = async () => {
-            btnSheetOffline.innerText = '⏳';
+            btnSheetOffline.querySelector('span').innerText = '⏳ Saving...';
             await saveTrackOffline(t);
             await refreshCachedIds();
-            btnSheetOffline.innerText = '✓';
+            btnSheetOffline.querySelector('span').innerText = '✓ Saved Offline';
         };
 
         const toggleFavHandler = async () => {
@@ -632,7 +680,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnMiniPlay.addEventListener('click', (e) => { e.stopPropagation(); togglePlayPause(); });
     btnSheetPlay.addEventListener('click', togglePlayPause);
-    btnMiniPrev.addEventListener('click', (e) => { e.stopPropagation(); if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1); });
     btnSheetPrev.addEventListener('click', () => { if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1); });
     btnMiniNext.addEventListener('click', (e) => { e.stopPropagation(); if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1); });
     btnSheetNext.addEventListener('click', () => { if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1); });

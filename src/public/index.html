@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Vault Music — Obsidian & Iris Streaming</title>
+    <title>Vault Music</title>
     
     <!-- PWA & iOS Safari Meta Tags -->
     <link rel="manifest" href="/manifest.json">
@@ -11,8 +11,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Vault Music">
-    <link rel="apple-touch-icon" href="/icon.svg">
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    
+    <!-- Apple Touch Icon (180x180 PNG required for iOS Home Screen) -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+    <link rel="shortcut icon" href="/favicon.png">
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -44,22 +48,22 @@
 
             <nav class="desktop-nav">
                 <button class="nav-btn active" data-tab="home">
-                    <span class="icon">🏠</span> Device Home
+                    <span class="icon">🏠</span> Listen Now
                 </button>
                 <button class="nav-btn" data-tab="tracks">
-                    <span class="icon">🎼</span> Tracks
+                    <span class="icon">🎼</span> Songs
                 </button>
                 <button class="nav-btn" data-tab="albums">
                     <span class="icon">💿</span> Albums
                 </button>
                 <button class="nav-btn" data-tab="playlists">
-                    <span class="icon">📂</span> Shared Playlists (<span id="desktop-pl-count">0</span>)
+                    <span class="icon">📂</span> Playlists (<span id="desktop-pl-count">0</span>)
                 </button>
                 <button class="nav-btn" data-tab="offline">
-                    <span class="icon">💾</span> Offline Cached (<span class="offline-badge-count">0</span>)
+                    <span class="icon">💾</span> Downloaded (<span class="offline-badge-count">0</span>)
                 </button>
                 <button class="nav-btn" data-tab="metadata">
-                    <span class="icon">✨</span> Metadata Engine
+                    <span class="icon">✨</span> MusicBrainz Engine
                 </button>
                 <button class="nav-btn" data-tab="downloads">
                     <span class="icon">⚡</span> Search & Download
@@ -81,27 +85,18 @@
         </aside>
 
         <!-- ======================================================== -->
-        <!-- MAIN VIEWPORT (Adapts to Phone / Desktop Layout)          -->
+        <!-- MAIN VIEWPORT (Apple Music Layout)                       -->
         <!-- ======================================================== -->
         <main class="main-viewport">
-            <!-- Mobile Top Header Bar -->
-            <header class="mobile-header">
-                <div class="mobile-header-top">
-                    <div class="mobile-brand" id="btn-mobile-open-profile">
-                        <span class="logo-icon">🎵</span>
-                        <div class="m-brand-texts">
-                            <span class="brand-title">Vault Music</span>
-                            <span class="m-device-tag" id="mobile-device-tag">📱 Phone</span>
-                        </div>
-                    </div>
-                    <div class="mobile-header-actions">
-                        <button id="btn-mobile-clone" class="icon-btn" title="Duplicate View from another device">⇄</button>
-                        <button id="btn-phone-scan" class="icon-btn" title="Scan Library">🔄</button>
-                    </div>
+            <!-- Mobile Top iOS Bar -->
+            <header class="mobile-top-bar">
+                <div class="ios-profile-pill" id="btn-mobile-open-profile">
+                    <span class="pill-dot online"></span>
+                    <span id="mobile-device-tag">iPhone</span>
+                    <span class="pill-arrow">⇄</span>
                 </div>
-                <div class="mobile-search-bar">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="phone-search-input" placeholder="Search 1,146 songs, albums, artists...">
+                <div class="mobile-top-actions">
+                    <button id="btn-phone-scan" class="ios-circle-btn" title="Scan Library">🔄</button>
                 </div>
             </header>
 
@@ -124,33 +119,28 @@
 
             <!-- Scrollable Content Panels -->
             <div class="content-scroll-area">
-                <!-- Tab 1: Device Custom Home Screen -->
+                <!-- Tab 1: Listen Now (Home) -->
                 <section id="tab-home" class="tab-panel active">
-                    <div class="home-hero">
-                        <div class="home-hero-text">
-                            <h1 id="home-greeting">Welcome to Vault Music</h1>
-                            <p class="home-sub" id="home-device-desc">Custom Home View for this Tailscale Device</p>
-                        </div>
-                        <button id="btn-home-clone-view" class="btn btn-secondary">
-                            <span>⇄</span> Duplicate View from Another Device
-                        </button>
+                    <div class="ios-page-header">
+                        <div class="ios-date-badge" id="ios-today-date">TODAY</div>
+                        <h1 class="ios-large-title" id="home-greeting">Listen Now</h1>
                     </div>
 
-                    <!-- Pinned Playlists Section -->
-                    <div class="home-section">
-                        <div class="section-header">
-                            <h2>Pinned Playlists</h2>
-                            <button id="btn-manage-pinned-pl" class="text-link-btn" onclick="switchTab('playlists')">View All Playlists →</button>
+                    <!-- Pinned Playlists Horizontal Carousel -->
+                    <div class="ios-section">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">Pinned Playlists</h2>
+                            <button class="ios-link-btn" onclick="switchTab('playlists')">See All</button>
                         </div>
                         <div class="pinned-playlists-grid" id="pinned-playlists-grid">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
 
-                    <!-- Favorite Tracks Section -->
-                    <div class="home-section" style="margin-top: 24px;">
-                        <div class="section-header">
-                            <h2>Favorite Tracks (<span id="home-fav-count">0</span>)</h2>
+                    <!-- Favorite Songs Section -->
+                    <div class="ios-section" style="margin-top: 28px;">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">Favorites (<span id="home-fav-count">0</span>)</h2>
                         </div>
                         <div class="tracks-container" id="home-favorites-container">
                             <!-- Populated dynamically -->
@@ -158,56 +148,56 @@
                     </div>
                 </section>
 
-                <!-- Tab 2: Tracks Tab -->
+                <!-- Tab 2: Songs Tab -->
                 <section id="tab-tracks" class="tab-panel">
-                    <div class="section-header">
-                        <h2>All Tracks (<span id="tracks-count">0</span>)</h2>
-                        <div class="sort-controls">
-                            <label>Sort:</label>
-                            <select id="tracks-sort">
-                                <option value="title">Title</option>
-                                <option value="artist">Artist</option>
-                                <option value="album">Album</option>
-                            </select>
-                        </div>
+                    <div class="ios-page-header">
+                        <h1 class="ios-large-title">Songs</h1>
+                        <span class="ios-sub-count"><span id="tracks-count">0</span> songs</span>
                     </div>
-                    <div class="tracks-container" id="tracks-container">
+
+                    <div class="ios-search-bar">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="phone-search-input" placeholder="Find in songs...">
+                    </div>
+
+                    <div class="tracks-container" id="tracks-container" style="margin-top: 14px;">
                         <!-- Populated dynamically -->
                     </div>
                 </section>
 
                 <!-- Tab 3: Albums Tab -->
                 <section id="tab-albums" class="tab-panel">
-                    <div class="section-header">
-                        <h2>Albums (<span id="albums-count">0</span>)</h2>
+                    <div class="ios-page-header">
+                        <h1 class="ios-large-title">Albums</h1>
+                        <span class="ios-sub-count"><span id="albums-count">0</span> albums</span>
                     </div>
                     <div class="albums-grid" id="albums-grid">
                         <!-- Populated dynamically -->
                     </div>
                 </section>
 
-                <!-- Tab 4: Shared Playlists Tab -->
+                <!-- Tab 4: Playlists Tab -->
                 <section id="tab-playlists" class="tab-panel">
-                    <div class="section-header">
-                        <h2>Shared Playlists (All Devices)</h2>
-                        <button id="btn-create-playlist-main" class="btn btn-primary">+ Create Playlist</button>
+                    <div class="ios-page-header flex-between">
+                        <div>
+                            <h1 class="ios-large-title">Playlists</h1>
+                            <span class="ios-sub-count">Shared Tailnet library</span>
+                        </div>
+                        <button id="btn-create-playlist-main" class="ios-pill-btn">+ New</button>
                     </div>
-                    <p class="section-desc">
-                        Playlists are shared across all Tailscale devices. You can pin your favorite playlists to your personal device home screen.
-                    </p>
                     <div class="playlists-grid" id="playlists-grid">
                         <!-- Populated dynamically -->
                     </div>
                 </section>
 
-                <!-- Tab 5: Offline Cache Tab -->
+                <!-- Tab 5: Downloaded / Offline Tab -->
                 <section id="tab-offline" class="tab-panel">
-                    <div class="section-header">
-                        <h2>Offline Cached Music (PWA Storage)</h2>
-                        <div class="offline-stats" id="offline-stats-summary">0 tracks • 0 MB used</div>
+                    <div class="ios-page-header">
+                        <h1 class="ios-large-title">Downloaded</h1>
+                        <span class="ios-sub-count" id="offline-stats-summary">0 songs • 0 MB</span>
                     </div>
-                    <p class="section-desc">
-                        These tracks are stored locally in your phone's browser cache. You can play them completely offline without connection to Tailnet.
+                    <p class="ios-section-desc">
+                        Saved in your phone's browser cache. Works offline in airplane mode.
                     </p>
                     <div class="tracks-container" id="offline-tracks-container" style="margin-top: 16px;">
                         <!-- Populated dynamically -->
@@ -216,8 +206,9 @@
 
                 <!-- Tab 6: Metadata Engine Tab -->
                 <section id="tab-metadata" class="tab-panel">
-                    <div class="section-header">
-                        <h2>MusicBrainz Metadata Engine</h2>
+                    <div class="ios-page-header">
+                        <h1 class="ios-large-title">Metadata</h1>
+                        <span class="ios-sub-count">MusicBrainz SQLite Dump</span>
                     </div>
                     <div class="metadata-dashboard">
                         <div class="meta-card">
@@ -239,23 +230,24 @@
 
                 <!-- Tab 7: Downloads & Search Tab -->
                 <section id="tab-downloads" class="tab-panel">
-                    <div class="section-header">
-                        <h2>Search & Download Tracks (Local Jackett / qBittorrent)</h2>
+                    <div class="ios-page-header">
+                        <h1 class="ios-large-title">Search</h1>
+                        <span class="ios-sub-count">Jackett & qBittorrent</span>
                     </div>
                     <div class="download-search-box">
-                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents...">
-                        <button id="btn-search-torrents" class="btn btn-primary">Search Jackett</button>
+                        <input type="text" id="torrent-search-input" placeholder="Search albums or tracks to download...">
+                        <button id="btn-search-torrents" class="btn btn-primary">Search</button>
                     </div>
 
                     <div class="torrents-results-container">
-                        <h3>Search Results</h3>
+                        <h3>Results</h3>
                         <div class="tracks-container" id="torrents-results-list">
-                            <div class="empty-state">Enter a query above to search local Jackett indexers</div>
+                            <div class="empty-state">Search query results will appear here</div>
                         </div>
                     </div>
 
                     <div class="active-downloads-container" style="margin-top: 24px;">
-                        <h3>Active qBittorrent Downloads</h3>
+                        <h3>Active Downloads</h3>
                         <div class="tracks-container" id="downloads-queue-list">
                             <!-- Populated dynamically -->
                         </div>
@@ -264,93 +256,105 @@
             </div>
 
             <!-- ======================================================== -->
-            <!-- BOTTOM AUDIO PLAYERS                                     -->
+            <!-- APPLE MUSIC FLOATING MINI PLAYER                         -->
             <!-- ======================================================== -->
-            
-            <!-- Mini Player (Mobile & Desktop) -->
-            <div class="mini-player" id="mini-player">
+            <div class="floating-mini-player" id="mini-player">
                 <div class="mini-player-progress" id="mini-progress-bar"></div>
-                <div class="mini-player-content">
+                <div class="mini-player-body">
                     <div class="mini-track-info" id="mini-track-info">
                         <div class="mini-art" id="mini-art">🎵</div>
                         <div class="mini-meta">
-                            <div class="mini-title" id="mini-title">No track selected</div>
-                            <div class="mini-artist" id="mini-artist">Vault Music Server</div>
+                            <div class="mini-title" id="mini-title">Not Playing</div>
+                            <div class="mini-artist" id="mini-artist">Select a song</div>
                         </div>
                     </div>
 
                     <div class="mini-controls">
-                        <button id="btn-mini-fav" class="ctrl-btn" title="Favorite">🤍</button>
-                        <button id="btn-mini-prev" class="ctrl-btn">⏮</button>
-                        <button id="btn-mini-play" class="ctrl-btn play-circle">▶</button>
-                        <button id="btn-mini-next" class="ctrl-btn">⏭</button>
+                        <button id="btn-mini-fav" class="ios-mini-btn" title="Favorite">🤍</button>
+                        <button id="btn-mini-play" class="ios-mini-play-btn">▶</button>
+                        <button id="btn-mini-next" class="ios-mini-btn">⏭</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Mobile Bottom Tab Navigation -->
-            <nav class="mobile-bottom-nav">
-                <button class="m-nav-item active" data-tab="home">
-                    <span class="m-icon">🏠</span>
-                    <span class="m-label">Home</span>
+            <!-- ======================================================== -->
+            <!-- APPLE MUSIC BOTTOM TAB BAR                               -->
+            <!-- ======================================================== -->
+            <nav class="apple-bottom-bar">
+                <button class="apple-tab active" data-tab="home">
+                    <span class="tab-icon">🏠</span>
+                    <span class="tab-label">Listen Now</span>
                 </button>
-                <button class="m-nav-item" data-tab="tracks">
-                    <span class="m-icon">🎼</span>
-                    <span class="m-label">Tracks</span>
+                <button class="apple-tab" data-tab="tracks">
+                    <span class="tab-icon">🎼</span>
+                    <span class="tab-label">Songs</span>
                 </button>
-                <button class="m-nav-item" data-tab="playlists">
-                    <span class="m-icon">📂</span>
-                    <span class="m-label">Playlists</span>
+                <button class="apple-tab" data-tab="albums">
+                    <span class="tab-icon">💿</span>
+                    <span class="tab-label">Albums</span>
                 </button>
-                <button class="m-nav-item" data-tab="offline">
-                    <span class="m-icon">💾</span>
-                    <span class="m-label">Offline</span>
+                <button class="apple-tab" data-tab="playlists">
+                    <span class="tab-icon">📂</span>
+                    <span class="tab-label">Playlists</span>
                 </button>
-                <button class="m-nav-item" data-tab="downloads">
-                    <span class="m-icon">⚡</span>
-                    <span class="m-label">Search</span>
+                <button class="apple-tab" data-tab="offline">
+                    <span class="tab-icon">💾</span>
+                    <span class="tab-label">Downloaded</span>
+                </button>
+                <button class="apple-tab" data-tab="downloads">
+                    <span class="tab-icon">🔍</span>
+                    <span class="tab-label">Search</span>
                 </button>
             </nav>
 
-            <!-- Full-Screen Mobile Now Playing Modal Sheet -->
+            <!-- ======================================================== -->
+            <!-- APPLE MUSIC FULLSCREEN NOW PLAYING SHEET                 -->
+            <!-- ======================================================== -->
             <div class="now-playing-sheet" id="now-playing-sheet">
+                <div class="sheet-grabber-bar">
+                    <div class="grabber-pill"></div>
+                </div>
+
                 <div class="sheet-header">
-                    <button id="btn-close-sheet" class="icon-btn">⌄</button>
+                    <button id="btn-close-sheet" class="sheet-icon-btn">⌄</button>
                     <span class="sheet-title">Now Playing</span>
-                    <button id="btn-sheet-download" class="icon-btn" title="Download to iOS Files">⬇️</button>
+                    <button id="btn-sheet-download" class="sheet-icon-btn" title="Save to iOS Files">⬇️</button>
                 </div>
 
                 <div class="sheet-art-container">
                     <div class="sheet-art" id="sheet-art">🎵</div>
                 </div>
 
-                <div class="sheet-meta">
-                    <div class="sheet-song-title" id="sheet-title">Song Title</div>
-                    <div class="sheet-artist-name" id="sheet-artist">Artist • Album</div>
+                <div class="sheet-info-row">
+                    <div class="sheet-meta-texts">
+                        <div class="sheet-song-title" id="sheet-title">Song Title</div>
+                        <div class="sheet-artist-name" id="sheet-artist">Artist • Album</div>
+                    </div>
+                    <button id="btn-sheet-fav" class="sheet-heart-btn" title="Favorite">🤍</button>
                 </div>
 
                 <div class="sheet-scrubber">
+                    <input type="range" id="sheet-seek-bar" min="0" max="100" value="0">
                     <div class="scrub-times">
                         <span id="sheet-current-time">0:00</span>
                         <span id="sheet-duration-time">0:00</span>
                     </div>
-                    <input type="range" id="sheet-seek-bar" min="0" max="100" value="0">
                 </div>
 
-                <div class="sheet-controls">
-                    <button id="btn-sheet-fav" class="sheet-sub-btn" title="Favorite">🤍</button>
-                    <button id="btn-sheet-prev" class="sheet-ctrl-btn">⏮</button>
-                    <button id="btn-sheet-play" class="sheet-play-btn">▶</button>
-                    <button id="btn-sheet-next" class="sheet-ctrl-btn">⏭</button>
-                    <button id="btn-sheet-offline" class="sheet-sub-btn" title="Cache Offline">💾</button>
+                <div class="sheet-transport">
+                    <button id="btn-sheet-prev" class="sheet-transport-btn">⏮</button>
+                    <button id="btn-sheet-play" class="sheet-main-play-btn">▶</button>
+                    <button id="btn-sheet-next" class="sheet-transport-btn">⏭</button>
+                </div>
+
+                <div class="sheet-bottom-actions">
+                    <button id="btn-sheet-offline" class="sheet-action-pill" title="Cache Offline">
+                        <span>💾 Save Offline</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- ======================================================== -->
-            <!-- MODALS                                                   -->
-            <!-- ======================================================== -->
-
-            <!-- Profile & Duplicate View Modal -->
+            <!-- Modals -->
             <div class="modal-overlay" id="profile-modal">
                 <div class="modal-card">
                     <div class="modal-header">
@@ -363,14 +367,14 @@
                             <input type="text" id="input-device-name" placeholder="e.g. Philippe's iPhone">
                         </div>
                         <div class="device-meta-info" id="device-meta-details">
-                            Tailscale ID: ts-xxxx | IP: 100.71.101.21
+                            Tailscale Node: 100.71.101.21
                         </div>
 
                         <hr class="modal-divider">
 
                         <h4>Duplicate View from Another Device</h4>
                         <p class="modal-subtext">
-                            Instantly copy all pinned playlists, favorite tracks, and home screen customization from any other connected Tailscale device to this device.
+                            Instantly copy all pinned playlists, favorites, and home view layout from another Tailscale device to this device.
                         </p>
                         <div class="form-group">
                             <label>Select Source Device:</label>
@@ -388,7 +392,6 @@
                 </div>
             </div>
 
-            <!-- Create Playlist Modal -->
             <div class="modal-overlay" id="playlist-modal">
                 <div class="modal-card">
                     <div class="modal-header">
@@ -407,7 +410,6 @@
                 </div>
             </div>
 
-            <!-- Add to Playlist Picker Modal -->
             <div class="modal-overlay" id="add-to-playlist-modal">
                 <div class="modal-card">
                     <div class="modal-header">
