@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vault Music — Streaming & Metadata Server</title>
+    <title>Vault Music — Obsidian & Iris Streaming</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="vault-theme">
     <div class="app-layout">
@@ -15,7 +14,7 @@
                 <div class="logo-icon">🎵</div>
                 <div class="logo-text">
                     <span class="brand">Vault Music</span>
-                    <span class="badge">v1.0</span>
+                    <span class="badge">vaultsqware</span>
                 </div>
             </div>
 
@@ -30,7 +29,7 @@
                     <span class="icon">🎤</span> Artists
                 </button>
                 <button class="nav-item" data-tab="metadata">
-                    <span class="icon">✨</span> Metadata & MB
+                    <span class="icon">✨</span> Metadata Engine
                 </button>
                 <button class="nav-item" data-tab="downloads">
                     <span class="icon">⚡</span> Search & Download
@@ -43,7 +42,7 @@
                 </a>
                 <div class="server-status" id="server-status">
                     <span class="status-dot online"></span>
-                    <span class="status-text">Tailnet Online</span>
+                    <span class="status-text">Tailnet Node 100.71.101.21</span>
                 </div>
             </div>
         </aside>
@@ -130,7 +129,7 @@
                         <div class="meta-card">
                             <h3>Local SQLite Dump Engine</h3>
                             <div class="card-status" id="meta-db-status">Status: Checking...</div>
-                            <p class="card-desc">0ms sub-millisecond offline lookup using PostgreSQL TSV dumps.</p>
+                            <p class="card-desc">32.7M recordings indexed with case-insensitive B-Trees for 0ms sub-millisecond lookups.</p>
                         </div>
                         <div class="meta-card">
                             <h3>Metadata Populator Job</h3>
@@ -149,10 +148,10 @@
                 <!-- Search & Download Tab -->
                 <section id="tab-downloads" class="tab-panel">
                     <div class="section-header">
-                        <h2>Search & Download Tracks (Jackett / qBittorrent)</h2>
+                        <h2>Search & Download Tracks (Local Jackett / qBittorrent)</h2>
                     </div>
                     <div class="download-search-box">
-                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents...">
+                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents on local Jackett (127.0.0.1:9117)...">
                         <button id="btn-search-torrents" class="btn btn-primary">Search Indexers</button>
                     </div>
 
@@ -170,14 +169,14 @@
                                     </tr>
                                 </thead>
                                 <tbody id="torrents-results-list">
-                                    <tr><td colspan="5" style="text-align: center; color: #8b949e;">Enter a query above to search Jackett / Comet</td></tr>
+                                    <tr><td colspan="5" style="text-align: center; color: var(--vwsq-console-text-dim);">Enter a query above to search local Jackett indexers</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <div class="active-downloads-container" style="margin-top: 24px;">
-                        <h3>Active qBittorrent Downloads</h3>
+                        <h3>Active qBittorrent Downloads (127.0.0.1:8081)</h3>
                         <div class="table-container">
                             <table class="tracks-table">
                                 <thead>

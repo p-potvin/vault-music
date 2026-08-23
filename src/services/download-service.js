@@ -6,7 +6,6 @@ class DownloadService {
     constructor(options = {}) {
         this.jackettUrl = options.jackettUrl || config.JACKETT_URL;
         this.jackettApiKey = options.jackettApiKey || config.JACKETT_API_KEY;
-        this.cometUrl = options.cometUrl || config.COMET_URL;
         this.qbittorrentUrl = options.qbittorrentUrl || config.QBITTORRENT_URL;
         this.qbittorrentUser = options.qbittorrentUser || config.QBITTORRENT_USER;
         this.qbittorrentPass = options.qbittorrentPass || config.QBITTORRENT_PASS;
@@ -56,12 +55,11 @@ class DownloadService {
     }
 
     /**
-     * Search for audio tracks or albums via Jackett / Comet indexers.
+     * Search for audio tracks or albums via local Jackett indexers.
      */
     async searchTorrents(query, { category = 3000 } = {}) {
         const results = [];
 
-        // 1. Query Jackett API if configured
         if (this.jackettUrl) {
             const jackettEndpoint = `${this.jackettUrl}/api/v2.0/indexers/all/results?apikey=${encodeURIComponent(this.jackettApiKey)}&Query=${encodeURIComponent(query)}&Category=${category}`;
             const res = await this._fetchJson(jackettEndpoint);
@@ -93,7 +91,7 @@ class DownloadService {
     }
 
     /**
-     * Send magnet link or torrent URL to qBittorrent with music savepath.
+     * Send magnet link or torrent URL to local qBittorrent.
      */
     async addDownload({ magnetUrl, torrentUrl, savePath = this.downloadsDir, category = 'music' }) {
         if (!magnetUrl && !torrentUrl) {
@@ -142,7 +140,7 @@ class DownloadService {
     }
 
     /**
-     * Get active download queue from qBittorrent.
+     * Get active download queue from local qBittorrent.
      */
     async getDownloadQueue({ category = 'music' } = {}) {
         const url = `${this.qbittorrentUrl}/api/v2/torrents/info?category=${encodeURIComponent(category)}`;
