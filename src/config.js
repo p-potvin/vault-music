@@ -12,7 +12,7 @@ module.exports = {
 
     // Local PC Services Integration (100.71.101.21 / localhost)
     JACKETT_URL: process.env.JACKETT_URL || 'http://127.0.0.1:9117',
-    JACKETT_API_KEY: process.env.JACKETT_API_KEY || '',
+    JACKETT_API_KEY: process.env.JACKETT_API_KEY || 'fhjy299tpjzrv9jndo6x29u83k8a2qsg',
     QBITTORRENT_URL: process.env.QBITTORRENT_URL || 'http://127.0.0.1:8081',
     QBITTORRENT_USER: process.env.QBITTORRENT_USER || 'vault-music',
     QBITTORRENT_PASS: process.env.QBITTORRENT_PASS || 'jaime-manger-des-repas-complets',

@@ -1289,6 +1289,185 @@ body {
     background: var(--vwsq-console-hover);
 }
 
+/* Search Filters & Indexer Selector Card */
+.search-filter-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-lg);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.search-options-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 14px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--vwsq-console-text-dim);
+}
+
+.filter-group select {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 6px 12px;
+    color: var(--vwsq-console-text-bright);
+    font-family: var(--vwsq-font-sans);
+    font-size: 13px;
+    outline: none;
+}
+
+.filter-checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vwsq-console-text-secondary);
+    cursor: pointer;
+}
+
+.filter-checkbox-group input[type="checkbox"] {
+    accent-color: var(--vwsq-iris-500);
+}
+
+/* Torrent Results Card */
+.torrent-result-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    transition: background 0.15s ease;
+}
+
+.torrent-result-card:hover {
+    background: var(--vwsq-console-hover);
+    border-color: var(--vwsq-console-border-strong);
+}
+
+.torrent-main-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.torrent-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--vwsq-console-text-bright);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.torrent-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+}
+
+.t-badge {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    padding: 2px 8px;
+    border-radius: var(--vwsq-radius-sm);
+    color: var(--vwsq-console-text-dim);
+}
+
+.t-badge.seeds {
+    color: var(--vwsq-signal-online);
+    border-color: rgba(86, 217, 141, 0.3);
+}
+
+.t-badge.tracker {
+    color: var(--vwsq-iris-300);
+}
+
+.btn-send-qbit {
+    background: var(--vwsq-iris-500);
+    color: #ffffff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: var(--vwsq-radius-md);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 0 10px var(--vwsq-iris-glow);
+    transition: all 0.15s ease;
+}
+
+.btn-send-qbit:hover {
+    background: var(--vwsq-iris-400);
+    box-shadow: 0 0 14px var(--vwsq-iris-glow);
+}
+
+.btn-send-qbit.sent {
+    background: var(--vwsq-signal-online);
+    color: #0a0c11;
+}
+
+/* qBittorrent Queue Items */
+.queue-item-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+.queue-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--vwsq-console-text-bright);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-progress-bg {
+    background: var(--vwsq-console-sunken);
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.queue-progress-bar {
+    background: linear-gradient(90deg, var(--vwsq-iris-500), var(--vwsq-signal-online));
+    height: 100%;
+}
+
+.queue-meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-console-text-dim);
+}
+
 /* ======================================================== */
 /* ADAPTIVE APPLE MUSIC MOBILE VIEWPORT                     */
 /* ======================================================== */
@@ -1315,6 +1494,13 @@ body {
     .track-action-btn span {
         display: none;
     }
+    .search-options-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .filter-group {
+        justify-content: space-between;
+    }
 }
 
 .phone-mode-active .desktop-sidebar {
@@ -1339,3 +1525,4 @@ body {
     border-right: 1px solid var(--vwsq-console-border);
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }
+

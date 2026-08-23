@@ -4,17 +4,32 @@ function createDownloadsRouter(downloadService) {
     const router = express.Router();
 
     /**
-     * Search torrent indexers (Jackett / Comet) for audio releases.
+     * Get list of available Jackett indexers.
+     */
+    router.get('/indexers', async (req, res) => {
+        try {
+            const indexers = await downloadService.getIndexers();
+            res.json(indexers);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    /**
+     * Search torrent indexers via Jackett with indexer selection, category, and music filter.
      */
     router.get('/search', async (req, res) => {
-        const { q, category } = req.query;
+        const { q, indexer, category, filterMusic, timeout } = req.query;
         if (!q) {
             return res.status(400).json({ error: 'Query parameter "q" is required' });
         }
 
         try {
             const results = await downloadService.searchTorrents(q, {
-                category: category ? parseInt(category, 10) : 3000
+                indexer: indexer || 'all',
+                category: category !== undefined ? category : 3000,
+                filterMusic: filterMusic === 'true' || filterMusic === true,
+                timeout: timeout ? parseInt(timeout, 10) : 15000
             });
             res.json(results);
         } catch (err) {
@@ -23,7 +38,7 @@ function createDownloadsRouter(downloadService) {
     });
 
     /**
-     * Send magnet URL or torrent link to qBittorrent.
+     * Send magnet URL or torrent link to local qBittorrent.
      */
     router.post('/add', async (req, res) => {
         const { magnetUrl, torrentUrl, savePath, category } = req.body;
@@ -36,7 +51,7 @@ function createDownloadsRouter(downloadService) {
                 magnetUrl,
                 torrentUrl,
                 savePath,
-                category
+                category: category || 'music'
             });
             res.json(result);
         } catch (err) {
@@ -45,10 +60,10 @@ function createDownloadsRouter(downloadService) {
     });
 
     /**
-     * Get active download queue from qBittorrent.
+     * Get active download queue from local qBittorrent.
      */
     router.get('/queue', async (req, res) => {
-        const { category = 'music' } = req.query;
+        const { category } = req.query;
         try {
             const result = await downloadService.getDownloadQueue({ category });
             res.json(result);

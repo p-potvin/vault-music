@@ -703,20 +703,163 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (audio.duration) audio.currentTime = (sheetSeekBar.value / 100) * audio.duration;
     });
 
-    // Search filters
-    let searchTimer = null;
-    const handleSearch = (val) => {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-            switchTab('tracks');
-            loadTracks(val.trim());
-        }, 200);
-    };
+    // =========================================================================
+    // Search & Download (Local Jackett & qBittorrent)
+    // =========================================================================
 
-    if (phoneSearchInput) phoneSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
-    if (desktopSearchInput) desktopSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+    const torrentSearchInput = document.getElementById('torrent-search-input');
+    const selectIndexer = document.getElementById('select-indexer');
+    const selectCategory = document.getElementById('select-category');
+    const checkFilterMusic = document.getElementById('check-filter-music');
+    const torrentsResultsList = document.getElementById('torrents-results-list');
+    const downloadsQueueList = document.getElementById('downloads-queue-list');
+    const btnSearchTorrents = document.getElementById('btn-search-torrents');
+    const btnRefreshQueue = document.getElementById('btn-refresh-queue');
+
+    async function loadIndexersList() {
+        if (!selectIndexer) return;
+        try {
+            const res = await apiFetch('/api/v1/downloads/indexers');
+            const indexers = await res.json();
+            if (Array.isArray(indexers) && indexers.length > 0) {
+                selectIndexer.innerHTML = '';
+                indexers.forEach(idx => {
+                    const opt = document.createElement('option');
+                    opt.value = idx.id;
+                    opt.innerText = idx.name;
+                    selectIndexer.appendChild(opt);
+                });
+            }
+        } catch (_) {}
+    }
+
+    async function executeTorrentSearch() {
+        const query = torrentSearchInput.value.trim();
+        if (!query) return;
+
+        const indexer = selectIndexer ? selectIndexer.value : 'all';
+        const category = selectCategory ? selectCategory.value : '3000';
+        const filterMusic = checkFilterMusic ? checkFilterMusic.checked : true;
+
+        torrentsResultsList.innerHTML = `<div class="empty-state">Searching indexers (${indexer})...</div>`;
+        btnSearchTorrents.disabled = true;
+        btnSearchTorrents.innerText = 'Searching...';
+
+        try {
+            const url = `/api/v1/downloads/search?q=${encodeURIComponent(query)}&indexer=${encodeURIComponent(indexer)}&category=${encodeURIComponent(category)}&filterMusic=${filterMusic}`;
+            const res = await apiFetch(url);
+            const data = await res.json();
+            const results = data.results || [];
+            document.getElementById('results-count').innerText = results.length;
+
+            torrentsResultsList.innerHTML = '';
+            if (results.length === 0) {
+                torrentsResultsList.innerHTML = `<div class="empty-state">No releases found. Try searching with "All Categories" or unchecking "Smart Audio Filter".</div>`;
+                return;
+            }
+
+            results.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'torrent-result-card';
+                card.innerHTML = `
+                    <div class="torrent-main-info">
+                        <div class="torrent-title">${r.title}</div>
+                        <div class="torrent-badges">
+                            <span class="t-badge tracker">${r.tracker || 'Indexer'}</span>
+                            <span class="t-badge">${r.formattedSize || 'N/A'}</span>
+                            <span class="t-badge seeds">▲ ${r.seeders} seeds</span>
+                            <span class="t-badge">▼ ${r.leechers} peers</span>
+                            <span class="t-badge">${r.categoryDesc || 'Audio'}</span>
+                        </div>
+                    </div>
+                    <button class="btn-send-qbit" title="Add to qBittorrent">
+                        <span>⬇️ Get</span>
+                    </button>
+                `;
+
+                const btnGet = card.querySelector('.btn-send-qbit');
+                btnGet.addEventListener('click', async () => {
+                    btnGet.disabled = true;
+                    btnGet.innerText = '⏳ Adding...';
+                    try {
+                        const addRes = await apiFetch('/api/v1/downloads/add', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                magnetUrl: r.magnetUri,
+                                torrentUrl: r.link,
+                                category: 'music'
+                            })
+                        });
+                        const addData = await addRes.json();
+                        if (addData.success) {
+                            btnGet.className = 'btn-send-qbit sent';
+                            btnGet.innerHTML = '✓ Queued';
+                            loadDownloadQueue();
+                        } else {
+                            btnGet.disabled = false;
+                            btnGet.innerText = '❌ Failed';
+                            alert('qBittorrent error: ' + (addData.error || 'Failed to add torrent'));
+                        }
+                    } catch (err) {
+                        btnGet.disabled = false;
+                        btnGet.innerText = '❌ Error';
+                        alert('Error: ' + err.message);
+                    }
+                });
+
+                torrentsResultsList.appendChild(card);
+            });
+        } catch (err) {
+            torrentsResultsList.innerHTML = `<div class="empty-state">Error searching indexers: ${err.message}</div>`;
+        } finally {
+            btnSearchTorrents.disabled = false;
+            btnSearchTorrents.innerText = 'Search Indexers';
+        }
+    }
+
+    if (btnSearchTorrents) btnSearchTorrents.addEventListener('click', executeTorrentSearch);
+    if (torrentSearchInput) {
+        torrentSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') executeTorrentSearch();
+        });
+    }
+
+    async function loadDownloadQueue() {
+        if (!downloadsQueueList) return;
+        try {
+            const res = await apiFetch('/api/v1/downloads/queue');
+            const data = await res.json();
+            const items = data.items || [];
+            document.getElementById('queue-count').innerText = items.length;
+
+            downloadsQueueList.innerHTML = '';
+            if (items.length === 0) {
+                downloadsQueueList.innerHTML = `<div class="empty-state">No active downloads in qBittorrent.</div>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'queue-item-card';
+                card.innerHTML = `
+                    <div class="queue-title">${item.name}</div>
+                    <div class="queue-progress-bg">
+                        <div class="queue-progress-bar" style="width: ${item.progressPct}%"></div>
+                    </div>
+                    <div class="queue-meta-row">
+                        <span>Progress: ${item.progress} (${item.formattedSize})</span>
+                        <span>DL: ${item.downloadSpeed} | State: ${item.state}</span>
+                    </div>
+                `;
+                downloadsQueueList.appendChild(card);
+            });
+        } catch (_) {}
+    }
+
+    if (btnRefreshQueue) btnRefreshQueue.addEventListener('click', loadDownloadQueue);
 
     // Initial App Load
     await loadCurrentProfile();
+    await loadIndexersList();
     await loadHomeTab();
 });

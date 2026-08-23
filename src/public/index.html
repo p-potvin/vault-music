@@ -231,23 +231,64 @@
                 <!-- Tab 7: Downloads & Search Tab -->
                 <section id="tab-downloads" class="tab-panel">
                     <div class="ios-page-header">
-                        <h1 class="ios-large-title">Search</h1>
-                        <span class="ios-sub-count">Jackett & qBittorrent</span>
-                    </div>
-                    <div class="download-search-box">
-                        <input type="text" id="torrent-search-input" placeholder="Search albums or tracks to download...">
-                        <button id="btn-search-torrents" class="btn btn-primary">Search</button>
+                        <h1 class="ios-large-title">Search & Download</h1>
+                        <span class="ios-sub-count">Local Jackett (9117) & qBittorrent (8081)</span>
                     </div>
 
-                    <div class="torrents-results-container">
-                        <h3>Results</h3>
-                        <div class="tracks-container" id="torrents-results-list">
-                            <div class="empty-state">Search query results will appear here</div>
+                    <!-- Search Controls & Filters -->
+                    <div class="search-filter-card">
+                        <div class="download-search-box">
+                            <input type="text" id="torrent-search-input" placeholder="Search song, album, or artist to download...">
+                            <button id="btn-search-torrents" class="btn btn-primary">Search Indexers</button>
+                        </div>
+
+                        <div class="search-options-row">
+                            <div class="filter-group">
+                                <label>Indexer:</label>
+                                <select id="select-indexer">
+                                    <option value="all">All Configured Indexers</option>
+                                    <option value="thepiratebay">The Pirate Bay (Fast)</option>
+                                    <option value="limetorrents">LimeTorrents</option>
+                                    <option value="kickasstorrents-ws">KickassTorrents</option>
+                                    <option value="therarbg">The RARBG</option>
+                                    <option value="1337x">1337x</option>
+                                    <option value="rutracker-ru">RuTracker</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Category:</label>
+                                <select id="select-category">
+                                    <option value="3000">Audio / Music (Cat 3000)</option>
+                                    <option value="3020">Lossless / FLAC (Cat 3020)</option>
+                                    <option value="3010">MP3 / 320kbps (Cat 3010)</option>
+                                    <option value="all">All Categories (No filter)</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-checkbox-group">
+                                <label>
+                                    <input type="checkbox" id="check-filter-music" checked>
+                                    <span>Smart Audio Filter</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="active-downloads-container" style="margin-top: 24px;">
-                        <h3>Active Downloads</h3>
+                    <div class="torrents-results-container" style="margin-top: 20px;">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">Search Results (<span id="results-count">0</span>)</h2>
+                        </div>
+                        <div class="tracks-container" id="torrents-results-list">
+                            <div class="empty-state">Enter a query above to search Jackett indexers</div>
+                        </div>
+                    </div>
+
+                    <div class="active-downloads-container" style="margin-top: 32px;">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">qBittorrent Active Queue (<span id="queue-count">0</span>)</h2>
+                            <button id="btn-refresh-queue" class="ios-link-btn">Refresh</button>
+                        </div>
                         <div class="tracks-container" id="downloads-queue-list">
                             <!-- Populated dynamically -->
                         </div>
