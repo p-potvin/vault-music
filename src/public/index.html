@@ -2,14 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Vault Music — Obsidian & Iris Streaming</title>
+    
+    <!-- PWA & iOS Safari Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0c11">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Vault Music">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="vault-theme">
-    <div class="app-layout">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
+<body class="vaultsqware-theme">
+    <div class="app-container" id="app-container">
+        <!-- ======================================================== -->
+        <!-- DESKTOP SIDEBAR (Visible on Desktop / Wide screens)       -->
+        <!-- ======================================================== -->
+        <aside class="desktop-sidebar">
             <div class="logo">
                 <div class="logo-icon">🎵</div>
                 <div class="logo-text">
@@ -18,46 +30,72 @@
                 </div>
             </div>
 
-            <nav class="nav-menu">
-                <button class="nav-item active" data-tab="tracks">
+            <nav class="desktop-nav">
+                <button class="nav-btn active" data-tab="tracks">
                     <span class="icon">🎼</span> Tracks
                 </button>
-                <button class="nav-item" data-tab="albums">
+                <button class="nav-btn" data-tab="albums">
                     <span class="icon">💿</span> Albums
                 </button>
-                <button class="nav-item" data-tab="artists">
+                <button class="nav-btn" data-tab="artists">
                     <span class="icon">🎤</span> Artists
                 </button>
-                <button class="nav-item" data-tab="metadata">
+                <button class="nav-btn" data-tab="offline">
+                    <span class="icon">💾</span> Offline Cached (<span class="offline-badge-count">0</span>)
+                </button>
+                <button class="nav-btn" data-tab="metadata">
                     <span class="icon">✨</span> Metadata Engine
                 </button>
-                <button class="nav-item" data-tab="downloads">
+                <button class="nav-btn" data-tab="downloads">
                     <span class="icon">⚡</span> Search & Download
                 </button>
             </nav>
 
             <div class="sidebar-footer">
+                <button id="btn-switch-mode" class="mode-toggle-btn">
+                    <span>📱 Switch to Phone UI</span>
+                </button>
                 <a href="/docs" target="_blank" class="api-docs-link">
                     <span class="icon">📖</span> OpenAPI / Swagger
                 </a>
-                <div class="server-status" id="server-status">
+                <div class="server-status">
                     <span class="status-dot online"></span>
-                    <span class="status-text">Tailnet Node 100.71.101.21</span>
+                    <span class="status-text">Tailnet 100.71.101.21</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Content Area -->
-        <main class="main-content">
-            <!-- Header Bar -->
-            <header class="topbar">
+        <!-- ======================================================== -->
+        <!-- MAIN VIEWPORT (Adapts to Phone / Desktop Layout)          -->
+        <!-- ======================================================== -->
+        <main class="main-viewport">
+            <!-- Mobile Top Header Bar -->
+            <header class="mobile-header">
+                <div class="mobile-header-top">
+                    <div class="mobile-brand">
+                        <span class="logo-icon">🎵</span>
+                        <span class="brand-title">Vault Music</span>
+                    </div>
+                    <div class="mobile-header-actions">
+                        <button id="btn-phone-scan" class="icon-btn" title="Scan Library">🔄</button>
+                        <button id="btn-phone-docs" class="icon-btn" title="API Docs" onclick="window.open('/docs','_blank')">📖</button>
+                    </div>
+                </div>
+                <div class="mobile-search-bar">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="phone-search-input" placeholder="Search 1,146 songs, albums, artists...">
+                </div>
+            </header>
+
+            <!-- Desktop Top Header Bar -->
+            <header class="desktop-header">
                 <div class="search-box">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="search-input" placeholder="Search songs, artists, albums...">
+                    <input type="text" id="desktop-search-input" placeholder="Search songs, artists, albums...">
                 </div>
 
-                <div class="topbar-actions">
-                    <button id="btn-scan" class="btn btn-secondary">
+                <div class="desktop-header-actions">
+                    <button id="btn-desktop-scan" class="btn btn-secondary">
                         <span>🔄</span> Scan Library
                     </button>
                     <button id="btn-populate-quick" class="btn btn-primary">
@@ -66,14 +104,14 @@
                 </div>
             </header>
 
-            <!-- Tab Panels -->
-            <div class="content-body">
+            <!-- Scrollable Content Panels -->
+            <div class="content-scroll-area">
                 <!-- Tracks Tab -->
                 <section id="tab-tracks" class="tab-panel active">
                     <div class="section-header">
                         <h2>All Tracks (<span id="tracks-count">0</span>)</h2>
                         <div class="sort-controls">
-                            <label>Sort by:</label>
+                            <label>Sort:</label>
                             <select id="tracks-sort">
                                 <option value="title">Title</option>
                                 <option value="artist">Artist</option>
@@ -81,22 +119,8 @@
                             </select>
                         </div>
                     </div>
-                    <div class="table-container">
-                        <table class="tracks-table">
-                            <thead>
-                                <tr>
-                                    <th width="40">#</th>
-                                    <th>Title</th>
-                                    <th>Artist</th>
-                                    <th>Album</th>
-                                    <th>Year</th>
-                                    <th width="100">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tracks-list">
-                                <!-- Populated dynamically -->
-                            </tbody>
-                        </table>
+                    <div class="tracks-container" id="tracks-container">
+                        <!-- Populated dynamically -->
                     </div>
                 </section>
 
@@ -120,7 +144,21 @@
                     </div>
                 </section>
 
-                <!-- Metadata & MusicBrainz Tab -->
+                <!-- Offline Cache Tab -->
+                <section id="tab-offline" class="tab-panel">
+                    <div class="section-header">
+                        <h2>Offline Cached Music (PWA Storage)</h2>
+                        <div class="offline-stats" id="offline-stats-summary">0 tracks • 0 MB used</div>
+                    </div>
+                    <p class="section-desc">
+                        These tracks are stored locally in your phone's browser cache. You can play them completely offline without connection to Tailnet.
+                    </p>
+                    <div class="tracks-container" id="offline-tracks-container" style="margin-top: 16px;">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Metadata Engine Tab -->
                 <section id="tab-metadata" class="tab-panel">
                     <div class="section-header">
                         <h2>MusicBrainz Metadata Engine</h2>
@@ -128,8 +166,8 @@
                     <div class="metadata-dashboard">
                         <div class="meta-card">
                             <h3>Local SQLite Dump Engine</h3>
-                            <div class="card-status" id="meta-db-status">Status: Checking...</div>
-                            <p class="card-desc">32.7M recordings indexed with case-insensitive B-Trees for 0ms sub-millisecond lookups.</p>
+                            <div class="card-status" id="meta-db-status">Active (32.7M Recordings)</div>
+                            <p class="card-desc">0ms sub-millisecond offline query latency using case-insensitive B-Trees.</p>
                         </div>
                         <div class="meta-card">
                             <h3>Metadata Populator Job</h3>
@@ -138,97 +176,120 @@
                                 <div class="progress-bar" id="meta-progress-bar" style="width: 0%"></div>
                             </div>
                             <div class="meta-stats" id="meta-stats-text">0 / 0 matched</div>
-                            <div class="card-actions">
-                                <button id="btn-start-populate" class="btn btn-primary">Start Metadata Run</button>
-                            </div>
+                            <button id="btn-start-populate" class="btn btn-primary">Start Metadata Run</button>
                         </div>
                     </div>
                 </section>
 
-                <!-- Search & Download Tab -->
+                <!-- Downloads & Search Tab -->
                 <section id="tab-downloads" class="tab-panel">
                     <div class="section-header">
                         <h2>Search & Download Tracks (Local Jackett / qBittorrent)</h2>
                     </div>
                     <div class="download-search-box">
-                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents on local Jackett (127.0.0.1:9117)...">
-                        <button id="btn-search-torrents" class="btn btn-primary">Search Indexers</button>
+                        <input type="text" id="torrent-search-input" placeholder="Search album, artist, or track torrents...">
+                        <button id="btn-search-torrents" class="btn btn-primary">Search Jackett</button>
                     </div>
 
                     <div class="torrents-results-container">
                         <h3>Search Results</h3>
-                        <div class="table-container">
-                            <table class="tracks-table">
-                                <thead>
-                                    <tr>
-                                        <th>Release Name</th>
-                                        <th>Tracker</th>
-                                        <th>Size</th>
-                                        <th>Seeds</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="torrents-results-list">
-                                    <tr><td colspan="5" style="text-align: center; color: var(--vwsq-console-text-dim);">Enter a query above to search local Jackett indexers</td></tr>
-                                </tbody>
-                            </table>
+                        <div class="tracks-container" id="torrents-results-list">
+                            <div class="empty-state">Enter a query above to search local Jackett indexers</div>
                         </div>
                     </div>
 
                     <div class="active-downloads-container" style="margin-top: 24px;">
-                        <h3>Active qBittorrent Downloads (127.0.0.1:8081)</h3>
-                        <div class="table-container">
-                            <table class="tracks-table">
-                                <thead>
-                                    <tr>
-                                        <th>Torrent</th>
-                                        <th>Progress</th>
-                                        <th>Speed</th>
-                                        <th>State</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="downloads-queue-list">
-                                    <!-- Populated dynamically -->
-                                </tbody>
-                            </table>
+                        <h3>Active qBittorrent Downloads</h3>
+                        <div class="tracks-container" id="downloads-queue-list">
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </section>
             </div>
 
-            <!-- Bottom Audio Player Bar -->
-            <div class="player-bar" id="player-bar">
-                <div class="player-track-info">
-                    <div class="player-art" id="player-art">🎵</div>
-                    <div class="player-meta">
-                        <div class="player-title" id="player-title">No track selected</div>
-                        <div class="player-artist" id="player-artist">Vault Music Server</div>
+            <!-- ======================================================== -->
+            <!-- BOTTOM AUDIO PLAYERS                                     -->
+            <!-- ======================================================== -->
+            
+            <!-- Mini Player (Mobile & Desktop) -->
+            <div class="mini-player" id="mini-player">
+                <div class="mini-player-progress" id="mini-progress-bar"></div>
+                <div class="mini-player-content">
+                    <div class="mini-track-info" id="mini-track-info">
+                        <div class="mini-art" id="mini-art">🎵</div>
+                        <div class="mini-meta">
+                            <div class="mini-title" id="mini-title">No track selected</div>
+                            <div class="mini-artist" id="mini-artist">Vault Music Server</div>
+                        </div>
+                    </div>
+
+                    <div class="mini-controls">
+                        <button id="btn-mini-prev" class="ctrl-btn">⏮</button>
+                        <button id="btn-mini-play" class="ctrl-btn play-circle">▶</button>
+                        <button id="btn-mini-next" class="ctrl-btn">⏭</button>
                     </div>
                 </div>
-
-                <div class="player-controls-center">
-                    <div class="player-buttons">
-                        <button id="btn-prev" class="p-btn">⏮</button>
-                        <button id="btn-play-pause" class="p-btn play-btn">▶</button>
-                        <button id="btn-next" class="p-btn">⏭</button>
-                    </div>
-                    <div class="player-timeline">
-                        <span id="current-time">0:00</span>
-                        <input type="range" id="seek-bar" min="0" max="100" value="0">
-                        <span id="duration-time">0:00</span>
-                    </div>
-                </div>
-
-                <div class="player-controls-right">
-                    <span class="vol-icon">🔊</span>
-                    <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1">
-                </div>
-
-                <audio id="audio-element" preload="none"></audio>
             </div>
+
+            <!-- Mobile Bottom Tab Navigation -->
+            <nav class="mobile-bottom-nav">
+                <button class="m-nav-item active" data-tab="tracks">
+                    <span class="m-icon">🎼</span>
+                    <span class="m-label">Tracks</span>
+                </button>
+                <button class="m-nav-item" data-tab="albums">
+                    <span class="m-icon">💿</span>
+                    <span class="m-label">Albums</span>
+                </button>
+                <button class="m-nav-item" data-tab="offline">
+                    <span class="m-icon">💾</span>
+                    <span class="m-label">Offline</span>
+                </button>
+                <button class="m-nav-item" data-tab="downloads">
+                    <span class="m-icon">⚡</span>
+                    <span class="m-label">Search</span>
+                </button>
+            </nav>
+
+            <!-- Full-Screen Mobile Now Playing Modal Sheet -->
+            <div class="now-playing-sheet" id="now-playing-sheet">
+                <div class="sheet-header">
+                    <button id="btn-close-sheet" class="icon-btn">⌄</button>
+                    <span class="sheet-title">Now Playing</span>
+                    <button id="btn-sheet-download" class="icon-btn" title="Download to iOS Files">⬇️</button>
+                </div>
+
+                <div class="sheet-art-container">
+                    <div class="sheet-art" id="sheet-art">🎵</div>
+                </div>
+
+                <div class="sheet-meta">
+                    <div class="sheet-song-title" id="sheet-title">Song Title</div>
+                    <div class="sheet-artist-name" id="sheet-artist">Artist • Album</div>
+                </div>
+
+                <div class="sheet-scrubber">
+                    <div class="scrub-times">
+                        <span id="sheet-current-time">0:00</span>
+                        <span id="sheet-duration-time">0:00</span>
+                    </div>
+                    <input type="range" id="sheet-seek-bar" min="0" max="100" value="0">
+                </div>
+
+                <div class="sheet-controls">
+                    <button id="btn-sheet-offline" class="sheet-sub-btn" title="Cache Offline">💾</button>
+                    <button id="btn-sheet-prev" class="sheet-ctrl-btn">⏮</button>
+                    <button id="btn-sheet-play" class="sheet-play-btn">▶</button>
+                    <button id="btn-sheet-next" class="sheet-ctrl-btn">⏭</button>
+                    <button id="btn-sheet-repeat" class="sheet-sub-btn" title="Repeat">🔁</button>
+                </div>
+            </div>
+
+            <audio id="audio-element" preload="none"></audio>
         </main>
     </div>
 
+    <script src="offline-db.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

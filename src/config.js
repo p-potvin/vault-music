@@ -14,8 +14,8 @@ module.exports = {
     JACKETT_URL: process.env.JACKETT_URL || 'http://127.0.0.1:9117',
     JACKETT_API_KEY: process.env.JACKETT_API_KEY || '',
     QBITTORRENT_URL: process.env.QBITTORRENT_URL || 'http://127.0.0.1:8081',
-    QBITTORRENT_USER: process.env.QBITTORRENT_USER || '',
-    QBITTORRENT_PASS: process.env.QBITTORRENT_PASS || '',
+    QBITTORRENT_USER: process.env.QBITTORRENT_USER || 'vault-music',
+    QBITTORRENT_PASS: process.env.QBITTORRENT_PASS || 'jaime-manger-des-repas-complets',
 
     SUPPORTED_AUDIO_EXT: new Set(['.mp3', '.flac', '.m4a', '.wav', '.ogg', '.aac', '.opus', '.wma', '.aiff'])
 };

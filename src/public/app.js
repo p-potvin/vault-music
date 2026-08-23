@@ -1,23 +1,62 @@
-document.addEventListener('DOMContentLoaded', () => {
+/**
+ * Vault Music — Dual Phone & Desktop Audio Controller + Offline PWA Engine
+ */
+
+document.addEventListener('DOMContentLoaded', async () => {
     let tracks = [];
     let currentTrackIndex = -1;
+    let currentTrackObj = null;
+    let isPlaying = false;
+    let cachedTrackIds = new Set();
     const audio = document.getElementById('audio-element');
 
-    // UI Elements
-    const tracksList = document.getElementById('tracks-list');
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+    }
+
+    // Load initial cached track IDs
+    async function refreshCachedIds() {
+        try {
+            const offlineTracks = await getAllOfflineTracks();
+            cachedTrackIds = new Set(offlineTracks.map(t => t.id));
+            document.querySelectorAll('.offline-badge-count').forEach(el => el.innerText = cachedTrackIds.size);
+        } catch (_) {}
+    }
+    await refreshCachedIds();
+
+    // UI Element References
+    const tracksContainer = document.getElementById('tracks-container');
     const albumsGrid = document.getElementById('albums-grid');
     const artistsGrid = document.getElementById('artists-grid');
-    const searchInput = document.getElementById('search-input');
-    const btnPlayPause = document.getElementById('btn-play-pause');
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    const seekBar = document.getElementById('seek-bar');
-    const currentTimeEl = document.getElementById('current-time');
-    const durationTimeEl = document.getElementById('duration-time');
-    const volSlider = document.getElementById('vol-slider');
-    const playerTitle = document.getElementById('player-title');
-    const playerArtist = document.getElementById('player-artist');
-    const playerArt = document.getElementById('player-art');
+    const offlineContainer = document.getElementById('offline-tracks-container');
+    const phoneSearchInput = document.getElementById('phone-search-input');
+    const desktopSearchInput = document.getElementById('desktop-search-input');
+
+    // Mini Player Elements
+    const miniPlayer = document.getElementById('mini-player');
+    const miniArt = document.getElementById('mini-art');
+    const miniTitle = document.getElementById('mini-title');
+    const miniArtist = document.getElementById('mini-artist');
+    const miniProgressBar = document.getElementById('mini-progress-bar');
+    const btnMiniPlay = document.getElementById('btn-mini-play');
+    const btnMiniPrev = document.getElementById('btn-mini-prev');
+    const btnMiniNext = document.getElementById('btn-mini-next');
+
+    // Full-Screen Sheet Elements
+    const sheet = document.getElementById('now-playing-sheet');
+    const btnCloseSheet = document.getElementById('btn-close-sheet');
+    const sheetArt = document.getElementById('sheet-art');
+    const sheetTitle = document.getElementById('sheet-title');
+    const sheetArtist = document.getElementById('sheet-artist');
+    const sheetSeekBar = document.getElementById('sheet-seek-bar');
+    const sheetCurrentTime = document.getElementById('sheet-current-time');
+    const sheetDurationTime = document.getElementById('sheet-duration-time');
+    const btnSheetPlay = document.getElementById('btn-sheet-play');
+    const btnSheetPrev = document.getElementById('btn-sheet-prev');
+    const btnSheetNext = document.getElementById('btn-sheet-next');
+    const btnSheetDownload = document.getElementById('btn-sheet-download');
+    const btnSheetOffline = document.getElementById('btn-sheet-offline');
 
     // Format seconds to M:SS
     function formatTime(sec) {
@@ -27,317 +66,293 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // Tab Navigation
-    document.querySelectorAll('.nav-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
-            const tabId = `tab-${btn.dataset.tab}`;
-            const target = document.getElementById(tabId);
-            if (target) target.classList.add('active');
-
-            if (btn.dataset.tab === 'albums') loadAlbums();
-            if (btn.dataset.tab === 'artists') loadArtists();
-            if (btn.dataset.tab === 'metadata') pollMetadataStatus();
-            if (btn.dataset.tab === 'downloads') loadDownloadQueue();
+    // Toggle Phone / Desktop Mode on demand
+    const btnSwitchMode = document.getElementById('btn-switch-mode');
+    if (btnSwitchMode) {
+        btnSwitchMode.addEventListener('click', () => {
+            document.body.classList.toggle('phone-mode-active');
+            const isPhone = document.body.classList.contains('phone-mode-active');
+            btnSwitchMode.querySelector('span').innerText = isPhone ? '💻 Switch to Desktop UI' : '📱 Switch to Phone UI';
         });
+    }
+
+    // Navigation Switcher (Desktop & Mobile Navs)
+    function switchTab(tabId) {
+        document.querySelectorAll('.nav-btn, .m-nav-item').forEach(b => {
+            if (b.dataset.tab === tabId) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        const target = document.getElementById(`tab-${tabId}`);
+        if (target) target.classList.add('active');
+
+        if (tabId === 'albums') loadAlbums();
+        if (tabId === 'artists') loadArtists();
+        if (tabId === 'offline') loadOfflineTab();
+        if (tabId === 'metadata') pollMetadataStatus();
+        if (tabId === 'downloads') loadDownloadQueue();
+    }
+
+    document.querySelectorAll('.nav-btn, .m-nav-item').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Expand Mini-Player to Full Sheet on Mobile
+    document.getElementById('mini-track-info').addEventListener('click', () => {
+        sheet.classList.add('open');
+    });
+    btnCloseSheet.addEventListener('click', () => {
+        sheet.classList.remove('open');
     });
 
     // Load Tracks
     async function loadTracks(query = '') {
         try {
-            const url = query ? `/api/v1/tracks?query=${encodeURIComponent(query)}` : '/api/v1/tracks?limit=200';
+            const url = query ? `/api/v1/tracks?query=${encodeURIComponent(query)}` : '/api/v1/tracks?limit=250';
             const res = await fetch(url);
             const data = await res.json();
             tracks = data.tracks || [];
             document.getElementById('tracks-count').innerText = data.total || 0;
 
-            tracksList.innerHTML = '';
+            tracksContainer.innerHTML = '';
             if (tracks.length === 0) {
-                tracksList.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 24px; color: #8b949e;">No tracks found. Click "Scan Library" to index audio files.</td></tr>`;
+                tracksContainer.innerHTML = `<div class="empty-state">No tracks found. Click "Scan Library" to index.</div>`;
                 return;
             }
 
             tracks.forEach((t, i) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-family: var(--font-mono); color: var(--text-muted);">${i + 1}</td>
-                    <td style="font-weight: 600;">${t.title}</td>
-                    <td>${t.artist}</td>
-                    <td style="color: var(--text-muted);">${t.album}</td>
-                    <td style="font-family: var(--font-mono); font-size: 11px;">${t.year || '-'}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;">▶ Play</button>
-                    </td>
+                const isCached = cachedTrackIds.has(t.id);
+                const row = document.createElement('div');
+                row.className = 'track-row';
+                row.innerHTML = `
+                    <div class="track-main-info">
+                        <div class="track-number">${i + 1}</div>
+                        <div class="track-texts">
+                            <div class="track-title">${t.title}</div>
+                            <div class="track-sub">${t.artist} • ${t.album}</div>
+                        </div>
+                    </div>
+                    <div class="track-actions">
+                        <button class="track-action-btn btn-offline ${isCached ? 'cached' : ''}" title="Cache Offline in PWA">
+                            <span>${isCached ? 'Saved' : 'Save'}</span> 💾
+                        </button>
+                        <button class="track-action-btn btn-direct-download" title="Download to iOS Files / iCloud">
+                            <span>Get</span> ⬇️
+                        </button>
+                    </div>
                 `;
-                tr.addEventListener('click', () => playTrack(i));
-                tracksList.appendChild(tr);
+
+                // Play track when clicking main row
+                row.querySelector('.track-main-info').addEventListener('click', () => playTrack(i));
+
+                // Save to IndexedDB Offline Cache
+                const btnOffline = row.querySelector('.btn-offline');
+                btnOffline.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    btnOffline.innerText = 'Saving...';
+                    try {
+                        await saveTrackOffline(t);
+                        await refreshCachedIds();
+                        btnOffline.className = 'track-action-btn btn-offline cached';
+                        btnOffline.innerHTML = '<span>Saved</span> 💾';
+                    } catch (err) {
+                        alert('Failed to cache track: ' + err.message);
+                    }
+                });
+
+                // Direct file download for iOS Files / iCloud Drive
+                const btnDl = row.querySelector('.btn-direct-download');
+                btnDl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const a = document.createElement('a');
+                    a.href = `/api/v1/download/${t.id}`;
+                    a.download = `${t.artist} - ${t.title}.mp3`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+
+                tracksContainer.appendChild(row);
             });
         } catch (err) {
             console.error('Failed to load tracks:', err);
         }
     }
 
-    // Load Albums
-    async function loadAlbums() {
+    // Load Offline Tab
+    async function loadOfflineTab() {
         try {
-            const res = await fetch('/api/v1/albums?limit=100');
-            const data = await res.json();
-            const albums = data.albums || [];
-            document.getElementById('albums-count').innerText = data.total || 0;
+            const offlineTracks = await getAllOfflineTracks();
+            const usage = await getOfflineStorageUsage();
+            document.getElementById('offline-stats-summary').innerText = `${usage.count} tracks cached • ${usage.formattedSize} used`;
 
-            albumsGrid.innerHTML = '';
-            albums.forEach(alb => {
-                const card = document.createElement('div');
-                card.className = 'album-card';
-                card.innerHTML = `
-                    <div class="album-art-wrap">
-                        ${alb.coverUrl ? `<img src="${alb.coverUrl}" alt="${alb.title}">` : '💿'}
+            offlineContainer.innerHTML = '';
+            if (offlineTracks.length === 0) {
+                offlineContainer.innerHTML = `<div class="empty-state">No offline tracks saved yet. Tap "Save 💾" next to any song to store it for offline airplane-mode playback.</div>`;
+                return;
+            }
+
+            offlineTracks.forEach((t, i) => {
+                const row = document.createElement('div');
+                row.className = 'track-row';
+                const sizeMb = (t.size / (1024 * 1024)).toFixed(1);
+                row.innerHTML = `
+                    <div class="track-main-info">
+                        <div class="track-number">${i + 1}</div>
+                        <div class="track-texts">
+                            <div class="track-title">${t.title}</div>
+                            <div class="track-sub">${t.artist} • ${sizeMb} MB</div>
+                        </div>
                     </div>
-                    <div class="album-title">${alb.title}</div>
-                    <div class="album-artist">${alb.artist} • ${alb.trackCount} tracks</div>
+                    <div class="track-actions">
+                        <button class="track-action-btn" style="color: #ef4444;" title="Remove from offline cache">🗑️</button>
+                    </div>
                 `;
-                card.addEventListener('click', () => {
-                    document.querySelector('.nav-item[data-tab="tracks"]').click();
-                    searchInput.value = alb.title;
-                    loadTracks(alb.title);
+
+                row.querySelector('.track-main-info').addEventListener('click', () => {
+                    playOfflineBlob(t);
                 });
-                albumsGrid.appendChild(card);
+
+                row.querySelector('.track-actions button').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await removeTrackOffline(t.id);
+                    await refreshCachedIds();
+                    loadOfflineTab();
+                });
+
+                offlineContainer.appendChild(row);
             });
         } catch (err) {
-            console.error('Failed to load albums:', err);
+            console.error('Failed to load offline tab:', err);
         }
     }
 
-    // Load Artists
-    async function loadArtists() {
-        try {
-            const res = await fetch('/api/v1/artists?limit=100');
-            const data = await res.json();
-            const artists = data.artists || [];
-            document.getElementById('artists-count').innerText = data.total || 0;
-
-            artistsGrid.innerHTML = '';
-            artists.forEach(art => {
-                const card = document.createElement('div');
-                card.className = 'artist-card';
-                card.innerHTML = `
-                    <div class="album-art-wrap">🎤</div>
-                    <div class="album-title">${art.name}</div>
-                    <div class="album-artist">${art.trackCount} tracks • ${art.albumCount} albums</div>
-                `;
-                card.addEventListener('click', () => {
-                    document.querySelector('.nav-item[data-tab="tracks"]').click();
-                    searchInput.value = art.name;
-                    loadTracks(art.name);
-                });
-                artistsGrid.appendChild(card);
-            });
-        } catch (err) {
-            console.error('Failed to load artists:', err);
-        }
-    }
-
-    // Playback Logic
-    function playTrack(index) {
+    // Playback Controller
+    async function playTrack(index) {
         if (index < 0 || index >= tracks.length) return;
         currentTrackIndex = index;
-        const track = tracks[index];
+        currentTrackObj = tracks[index];
 
-        audio.src = track.streamUrl;
+        // Check if track is cached offline in IndexedDB
+        const offlineItem = await getOfflineTrack(currentTrackObj.id);
+        if (offlineItem && offlineItem.blob) {
+            playOfflineBlob(offlineItem);
+            return;
+        }
+
+        audio.src = currentTrackObj.streamUrl;
         audio.play().catch(e => console.warn('Audio play prevented:', e));
-
-        playerTitle.innerText = track.title;
-        playerArtist.innerText = `${track.artist} — ${track.album}`;
-        playerArt.innerHTML = track.coverUrl ? `<img src="${track.coverUrl}">` : '🎵';
-        btnPlayPause.innerText = '⏸';
-
-        document.querySelectorAll('.tracks-table tbody tr').forEach((tr, i) => {
-            if (i === index) tr.classList.add('playing');
-            else tr.classList.remove('playing');
-        });
+        updatePlayerUI(currentTrackObj);
     }
 
-    btnPlayPause.addEventListener('click', () => {
+    function playOfflineBlob(offlineTrack) {
+        currentTrackObj = offlineTrack;
+        const blobUrl = URL.createObjectURL(offlineTrack.blob);
+        audio.src = blobUrl;
+        audio.play().catch(e => console.warn('Audio play prevented:', e));
+        updatePlayerUI(offlineTrack);
+    }
+
+    function updatePlayerUI(t) {
+        isPlaying = true;
+        const artHtml = t.coverUrl ? `<img src="${t.coverUrl}">` : '🎵';
+
+        miniTitle.innerText = t.title;
+        miniArtist.innerText = `${t.artist} — ${t.album}`;
+        miniArt.innerHTML = artHtml;
+        btnMiniPlay.innerText = '⏸';
+
+        sheetTitle.innerText = t.title;
+        sheetArtist.innerText = `${t.artist} • ${t.album}`;
+        sheetArt.innerHTML = artHtml;
+        btnSheetPlay.innerText = '⏸';
+
+        // Update iOS Lockscreen / MediaSession Controls
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: t.title,
+                artist: t.artist,
+                album: t.album,
+                artwork: t.coverUrl ? [{ src: t.coverUrl, sizes: '512x512', type: 'image/jpeg' }] : []
+            });
+
+            navigator.mediaSession.setActionHandler('play', () => { audio.play(); isPlaying = true; updatePlayButtons(); });
+            navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); isPlaying = false; updatePlayButtons(); });
+            navigator.mediaSession.setActionHandler('previoustrack', () => { if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1); });
+            navigator.mediaSession.setActionHandler('nexttrack', () => { if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1); });
+            navigator.mediaSession.setActionHandler('seekto', (details) => { if (details.seekTime) audio.currentTime = details.seekTime; });
+        }
+
+        // Direct Download link on Now Playing Sheet
+        btnSheetDownload.onclick = () => {
+            window.location.href = `/api/v1/download/${t.id}`;
+        };
+
+        btnSheetOffline.onclick = async () => {
+            btnSheetOffline.innerText = '⏳';
+            await saveTrackOffline(t);
+            await refreshCachedIds();
+            btnSheetOffline.innerText = '✓';
+        };
+    }
+
+    function updatePlayButtons() {
+        const char = audio.paused ? '▶' : '⏸';
+        btnMiniPlay.innerText = char;
+        btnSheetPlay.innerText = char;
+    }
+
+    function togglePlayPause() {
         if (!audio.src || currentTrackIndex === -1) {
             if (tracks.length > 0) playTrack(0);
             return;
         }
         if (audio.paused) {
             audio.play();
-            btnPlayPause.innerText = '⏸';
         } else {
             audio.pause();
-            btnPlayPause.innerText = '▶';
         }
-    });
+        updatePlayButtons();
+    }
 
-    btnPrev.addEventListener('click', () => {
-        if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1);
-    });
+    btnMiniPlay.addEventListener('click', (e) => { e.stopPropagation(); togglePlayPause(); });
+    btnSheetPlay.addEventListener('click', togglePlayPause);
 
-    btnNext.addEventListener('click', () => {
-        if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1);
-    });
+    btnMiniPrev.addEventListener('click', (e) => { e.stopPropagation(); if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1); });
+    btnSheetPrev.addEventListener('click', () => { if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1); });
+
+    btnMiniNext.addEventListener('click', (e) => { e.stopPropagation(); if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1); });
+    btnSheetNext.addEventListener('click', () => { if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1); });
 
     audio.addEventListener('timeupdate', () => {
         if (!isNaN(audio.duration) && audio.duration > 0) {
             const pct = (audio.currentTime / audio.duration) * 100;
-            seekBar.value = pct;
-            currentTimeEl.innerText = formatTime(audio.currentTime);
-            durationTimeEl.innerText = formatTime(audio.duration);
+            miniProgressBar.style.width = `${pct}%`;
+            sheetSeekBar.value = pct;
+            sheetCurrentTime.innerText = formatTime(audio.currentTime);
+            sheetDurationTime.innerText = formatTime(audio.duration);
         }
     });
 
     audio.addEventListener('ended', () => {
-        if (currentTrackIndex < tracks.length - 1) {
-            playTrack(currentTrackIndex + 1);
-        } else {
-            btnPlayPause.innerText = '▶';
-        }
+        if (currentTrackIndex < tracks.length - 1) playTrack(currentTrackIndex + 1);
+        else updatePlayButtons();
     });
 
-    seekBar.addEventListener('input', () => {
-        if (audio.duration) {
-            audio.currentTime = (seekBar.value / 100) * audio.duration;
-        }
+    sheetSeekBar.addEventListener('input', () => {
+        if (audio.duration) audio.currentTime = (sheetSeekBar.value / 100) * audio.duration;
     });
 
-    volSlider.addEventListener('input', () => {
-        audio.volume = volSlider.value;
-    });
+    // Search filters
+    let searchTimer = null;
+    const handleSearch = (val) => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadTracks(val.trim()), 200);
+    };
 
-    // Search filter
-    let searchDebounce = null;
-    searchInput.addEventListener('input', () => {
-        clearTimeout(searchDebounce);
-        searchDebounce = setTimeout(() => {
-            loadTracks(searchInput.value.trim());
-        }, 200);
-    });
-
-    // Scan Button
-    document.getElementById('btn-scan').addEventListener('click', async () => {
-        const btn = document.getElementById('btn-scan');
-        btn.innerText = 'Scanning...';
-        await fetch('/api/v1/library/scan', { method: 'POST' });
-        await loadTracks();
-        btn.innerHTML = '<span>🔄</span> Scan Library';
-    });
-
-    // Quick Populate & Metadata Job
-    async function pollMetadataStatus() {
-        try {
-            const res = await fetch('/api/v1/metadata/status');
-            const data = await res.json();
-            const dbStatus = document.getElementById('meta-db-status');
-            const jobStatus = document.getElementById('meta-job-status');
-            const progressBar = document.getElementById('meta-progress-bar');
-            const statsText = document.getElementById('meta-stats-text');
-
-            dbStatus.innerText = data.localDbAvailable
-                ? `Active (Loaded from ${data.localDbPath})`
-                : `Offline (Using MusicBrainz API at ${data.remoteHost})`;
-            dbStatus.style.color = data.localDbAvailable ? '#10b981' : '#f59e0b';
-
-            if (data.isRunning) {
-                const pct = data.total > 0 ? Math.round((data.processed / data.total) * 100) : 0;
-                jobStatus.innerText = `Running (${pct}%) — ${data.currentTrack || 'Matching...'}`;
-                progressBar.style.width = `${pct}%`;
-                statsText.innerText = `${data.matched} matched / ${data.total} total (${data.coversDownloaded} covers, ${data.nfosWritten} NFOs)`;
-                setTimeout(pollMetadataStatus, 1500);
-            } else {
-                jobStatus.innerText = data.lastRun ? `Completed at ${new Date(data.lastRun).toLocaleTimeString()}` : 'Idle';
-                progressBar.style.width = '100%';
-            }
-        } catch (_) {}
-    }
-
-    document.getElementById('btn-start-populate').addEventListener('click', async () => {
-        await fetch('/api/v1/metadata/populate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ downloadArt: true, writeNfo: true, writeJson: true })
-        });
-        pollMetadataStatus();
-    });
-
-    document.getElementById('btn-populate-quick').addEventListener('click', () => {
-        document.querySelector('.nav-item[data-tab="metadata"]').click();
-        document.getElementById('btn-start-populate').click();
-    });
-
-    // Torrent search (Jackett / Comet)
-    document.getElementById('btn-search-torrents').addEventListener('click', async () => {
-        const query = document.getElementById('torrent-search-input').value.trim();
-        if (!query) return;
-        const btn = document.getElementById('btn-search-torrents');
-        const list = document.getElementById('torrents-results-list');
-        btn.innerText = 'Searching...';
-        list.innerHTML = `<tr><td colspan="5" style="text-align:center;">Searching Jackett & Comet...</td></tr>`;
-
-        try {
-            const res = await fetch(`/api/v1/downloads/search?q=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            const results = data.results || [];
-            list.innerHTML = '';
-
-            if (results.length === 0) {
-                list.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #8b949e;">No torrents found for "${query}".</td></tr>`;
-            } else {
-                results.forEach(item => {
-                    const tr = document.createElement('tr');
-                    const sizeMb = item.size ? (item.size / (1024 * 1024)).toFixed(1) + ' MB' : '-';
-                    tr.innerHTML = `
-                        <td style="font-weight: 600;">${item.title}</td>
-                        <td>${item.tracker}</td>
-                        <td style="font-family: var(--font-mono); font-size: 11px;">${sizeMb}</td>
-                        <td style="color: #10b981; font-weight: 600;">${item.seeders || 0}</td>
-                        <td><button class="btn btn-primary btn-sm" style="padding: 4px 8px; font-size: 11px;">Download</button></td>
-                    `;
-                    tr.querySelector('button').addEventListener('click', async () => {
-                        await fetch('/api/v1/downloads/add', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ magnetUrl: item.magnetUri, torrentUrl: item.link })
-                        });
-                        alert(`Sent "${item.title}" to qBittorrent!`);
-                        loadDownloadQueue();
-                    });
-                    list.appendChild(tr);
-                });
-            }
-        } catch (err) {
-            list.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #ef4444;">Search failed: ${err.message}</td></tr>`;
-        } finally {
-            btn.innerText = 'Search Indexers';
-        }
-    });
-
-    async function loadDownloadQueue() {
-        try {
-            const res = await fetch('/api/v1/downloads/queue');
-            const data = await res.json();
-            const list = document.getElementById('downloads-queue-list');
-            list.innerHTML = '';
-            const items = data.items || [];
-            if (items.length === 0) {
-                list.innerHTML = `<tr><td colspan="4" style="text-align:center; color: #8b949e;">No active music downloads in qBittorrent.</td></tr>`;
-                return;
-            }
-            items.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-weight: 600;">${t.name}</td>
-                    <td>${t.progress}</td>
-                    <td style="font-family: var(--font-mono); font-size: 11px;">${(t.downloadSpeed / 1024).toFixed(0)} KB/s</td>
-                    <td><span class="badge">${t.state}</span></td>
-                `;
-                list.appendChild(tr);
-            });
-        } catch (_) {}
-    }
+    if (phoneSearchInput) phoneSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
+    if (desktopSearchInput) desktopSearchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
     // Initial Load
     loadTracks();

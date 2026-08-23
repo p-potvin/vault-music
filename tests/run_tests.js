@@ -5,6 +5,7 @@ const path = require('path');
 
 const testSuites = [
     { name: 'Audio Streaming & Range Requests', script: 'tests/streaming_test.js' },
+    { name: 'PWA & Direct iOS Downloads', script: 'tests/pwa_download_test.js' },
     { name: 'Swagger & OpenAPI Documentation', script: 'tests/swagger_docs_test.js' },
     { name: 'Metadata & MusicBrainz Engine', script: 'tests/metadata_test.js' }
 ];

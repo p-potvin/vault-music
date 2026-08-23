@@ -33,6 +33,19 @@ function createStreamRouter(libraryService) {
         fs.createReadStream(album.coverPath).pipe(res);
     });
 
+    /**
+     * Download track audio file directly (e.g. into iOS Files app / iCloud).
+     */
+    router.get('/download/:trackId', (req, res) => {
+        const track = libraryService.getTrack(req.params.trackId);
+        if (!track || !fs.existsSync(track.filePath)) {
+            return res.status(404).json({ error: 'Track not found in library' });
+        }
+        const ext = path.extname(track.filePath);
+        const downloadName = `${track.artist} - ${track.title}${ext}`.replace(/[<>:"/\\|?*]/g, '_');
+        res.download(track.filePath, downloadName);
+    });
+
     return router;
 }
 
