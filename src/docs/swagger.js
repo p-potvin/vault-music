@@ -29,8 +29,10 @@ const openApiSpec = {
     tags: [
         { name: 'Streaming', description: 'HTTP byte-range audio & album artwork streaming' },
         { name: 'Library', description: 'Music library indexing, artists, albums, and tracks' },
+        { name: 'Profiles', description: 'Tailscale device identification, custom views, and view duplication' },
+        { name: 'Playlists', description: 'Shared playlists across all Tailscale devices' },
         { name: 'Metadata', description: 'MusicBrainz local database & online metadata matching' },
-        { name: 'Downloads', description: 'Torrent search (Jackett/Comet) and qBittorrent download manager' },
+        { name: 'Downloads', description: 'Local Jackett torrent search and qBittorrent download manager' },
         { name: 'System', description: 'Health checks and server status' }
     ],
     paths: {
@@ -181,6 +183,88 @@ const openApiSpec = {
                 responses: {
                     200: { description: 'Scan results summary' }
                 }
+            }
+        },
+        '/api/v1/profiles/me': {
+            get: {
+                tags: ['Profiles'],
+                summary: 'Get current Tailscale device profile & custom homeView',
+                responses: { 200: { description: 'Device profile and custom home layout' } }
+            },
+            post: {
+                tags: ['Profiles'],
+                summary: 'Update device name or homeView configuration',
+                requestBody: {
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' },
+                                    homeView: { type: 'object' }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: { 200: { description: 'Updated device profile' } }
+            }
+        },
+        '/api/v1/profiles': {
+            get: {
+                tags: ['Profiles'],
+                summary: 'List all connected Tailscale devices/profiles',
+                responses: { 200: { description: 'List of devices' } }
+            }
+        },
+        '/api/v1/profiles/clone-view': {
+            post: {
+                tags: ['Profiles'],
+                summary: 'Duplicate view and home screen preferences from another device',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    sourceDeviceId: { type: 'string' }
+                                },
+                                required: ['sourceDeviceId']
+                            }
+                        }
+                    }
+                },
+                responses: { 200: { description: 'Cloned device view' } }
+            }
+        },
+        '/api/v1/profiles/playlists/all': {
+            get: {
+                tags: ['Playlists'],
+                summary: 'List all shared playlists across devices',
+                responses: { 200: { description: 'List of playlists' } }
+            }
+        },
+        '/api/v1/profiles/playlists': {
+            post: {
+                tags: ['Playlists'],
+                summary: 'Create a new shared playlist',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    name: { type: 'string' },
+                                    trackIds: { type: 'array', items: { type: 'string' } }
+                                },
+                                required: ['name']
+                            }
+                        }
+                    }
+                },
+                responses: { 201: { description: 'Created playlist' } }
             }
         },
         '/api/v1/metadata/status': {

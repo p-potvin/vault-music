@@ -84,21 +84,21 @@ body {
 /* DESKTOP SIDEBAR                                          */
 /* ======================================================== */
 .desktop-sidebar {
-    width: 240px;
+    width: 250px;
     background: var(--vwsq-console-surface);
     border-right: 1px solid var(--vwsq-console-border);
     display: flex;
     flex-direction: column;
-    padding: 20px 16px;
+    padding: 16px 14px;
     box-shadow: 2px 0 16px rgba(0, 0, 0, 0.35);
 }
 
 .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-    padding: 0 8px;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0 6px;
 }
 
 .logo-icon {
@@ -124,11 +124,76 @@ body {
     border: 1px solid rgba(110, 123, 242, 0.25);
 }
 
+/* Active Device Profile Card in Sidebar */
+.device-profile-card {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 10px;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.device-profile-card:hover {
+    border-color: var(--vwsq-iris-500);
+    box-shadow: 0 0 12px var(--vwsq-iris-glow);
+}
+
+.device-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.device-icon {
+    font-size: 16px;
+}
+
+.device-texts {
+    flex: 1;
+    min-width: 0;
+}
+
+.device-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vwsq-console-text-bright);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-id-sub {
+    font-size: 10px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-iris-300);
+}
+
+.clone-quick-btn {
+    background: var(--vwsq-console-raised);
+    border: 1px solid var(--vwsq-console-border);
+    color: var(--vwsq-console-text-secondary);
+    font-size: 11px;
+    width: 100%;
+    padding: 4px 0;
+    border-radius: var(--vwsq-radius-sm);
+    cursor: pointer;
+}
+
+.clone-quick-btn:hover {
+    color: var(--vwsq-console-text-bright);
+    border-color: var(--vwsq-iris-500);
+}
+
 .desktop-nav {
     display: flex;
     flex-direction: column;
     gap: 4px;
     flex: 1;
+    overflow-y: auto;
 }
 
 .nav-btn {
@@ -180,10 +245,10 @@ body {
 
 .sidebar-footer {
     border-top: 1px solid var(--vwsq-console-border);
-    padding-top: 16px;
+    padding-top: 14px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .api-docs-link {
@@ -257,7 +322,7 @@ body {
     border: 1px solid var(--vwsq-console-border);
     border-radius: var(--vwsq-radius-md);
     padding: 6px 12px;
-    width: 320px;
+    width: 340px;
     gap: 8px;
 }
 
@@ -335,9 +400,24 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
+}
+
+.m-brand-texts {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-title {
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     color: var(--vwsq-console-text-bright);
+}
+
+.m-device-tag {
+    font-size: 10px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-iris-300);
 }
 
 .mobile-header-actions {
@@ -379,13 +459,13 @@ body {
 }
 
 /* ======================================================== */
-/* SCROLL AREA & TRACK LISTINGS                             */
+/* SCROLL AREA & TAB CONTENT                                */
 /* ======================================================== */
 .content-scroll-area {
     flex: 1;
     overflow-y: auto;
     padding: 20px;
-    padding-bottom: 140px; /* space for mini player & nav */
+    padding-bottom: 140px;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -410,30 +490,110 @@ body {
     color: var(--vwsq-console-text-bright);
 }
 
-.section-desc {
+.text-link-btn {
+    background: transparent;
+    border: none;
+    color: var(--vwsq-iris-300);
     font-size: 12px;
-    color: var(--vwsq-console-text-dim);
-    margin-bottom: 14px;
-    line-height: 1.5;
+    cursor: pointer;
 }
 
-.sort-controls {
+.text-link-btn:hover {
+    text-decoration: underline;
+}
+
+/* Home Hero Card */
+.home-hero {
+    background: linear-gradient(135deg, rgba(110, 123, 242, 0.15), rgba(17, 20, 27, 0.9));
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-lg);
+    padding: 20px;
+    margin-bottom: 24px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    justify-content: space-between;
+    gap: 16px;
 }
 
-.sort-controls select {
-    background: var(--vwsq-console-surface);
+.home-hero h1 {
+    font-size: 18px;
     color: var(--vwsq-console-text-bright);
-    border: 1px solid var(--vwsq-console-border);
-    padding: 4px 8px;
-    border-radius: var(--vwsq-radius-sm);
-    outline: none;
+    margin-bottom: 4px;
 }
 
-/* Touch Track Row Architecture */
+.home-sub {
+    font-size: 12px;
+    color: var(--vwsq-console-text-secondary);
+}
+
+/* Pinned Playlists Grid */
+.pinned-playlists-grid, .playlists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.playlist-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.playlist-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--vwsq-iris-500);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.pl-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.pl-card-icon {
+    font-size: 24px;
+}
+
+.pl-card-pin-btn {
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--vwsq-console-text-dim);
+}
+
+.pl-card-pin-btn.pinned {
+    color: var(--vwsq-coral-500);
+}
+
+.pl-card-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--vwsq-console-text-bright);
+    margin-bottom: 4px;
+}
+
+.pl-card-owner {
+    font-size: 11px;
+    color: var(--vwsq-console-text-dim);
+}
+
+.pl-card-meta {
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-iris-300);
+    margin-top: 10px;
+}
+
+/* Track Rows */
 .tracks-container {
     display: flex;
     flex-direction: column;
@@ -509,7 +669,7 @@ body {
     background: var(--vwsq-console-sunken);
     border: 1px solid var(--vwsq-console-border);
     color: var(--vwsq-console-text-secondary);
-    padding: 6px 10px;
+    padding: 6px 9px;
     border-radius: var(--vwsq-radius-sm);
     font-size: 11px;
     cursor: pointer;
@@ -524,13 +684,17 @@ body {
     color: var(--vwsq-console-text-bright);
 }
 
+.track-action-btn.fav-active {
+    color: #ef4444;
+}
+
 .track-action-btn.cached {
     background: rgba(86, 217, 141, 0.12);
     border-color: var(--vwsq-signal-online);
     color: var(--vwsq-signal-online);
 }
 
-/* Grid Views */
+/* Grids */
 .albums-grid, .artists-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -586,7 +750,7 @@ body {
 }
 
 /* ======================================================== */
-/* MINI AUDIO PLAYER                                        */
+/* MINI AUDIO PLAYER & BOTTOM NAV                           */
 /* ======================================================== */
 .mini-player {
     position: absolute;
@@ -694,9 +858,6 @@ body {
     box-shadow: 0 0 10px var(--vwsq-iris-glow);
 }
 
-/* ======================================================== */
-/* MOBILE BOTTOM TAB NAVIGATION                             */
-/* ======================================================== */
 .mobile-bottom-nav {
     display: none;
     position: absolute;
@@ -739,7 +900,7 @@ body {
 }
 
 /* ======================================================== */
-/* FULL-SCREEN NOW PLAYING MODAL SHEET (PHONE)              */
+/* NOW PLAYING FULL SHEET                                   */
 /* ======================================================== */
 .now-playing-sheet {
     position: fixed;
@@ -884,7 +1045,146 @@ body {
 }
 
 /* ======================================================== */
-/* PHONE ADAPTIVE / TOGGLED MODE STYLES                     */
+/* MODALS                                                   */
+/* ======================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal-card {
+    background: var(--vwsq-console-surface);
+    border: 1px solid var(--vwsq-console-border-strong);
+    border-radius: var(--vwsq-radius-lg);
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--vwsq-console-border);
+}
+
+.modal-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--vwsq-console-text-bright);
+}
+
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--vwsq-console-text-dim);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vwsq-console-text-secondary);
+}
+
+.form-group input, .form-group select {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-sm);
+    padding: 8px 12px;
+    color: var(--vwsq-console-text-bright);
+    font-family: var(--vwsq-font-sans);
+    font-size: 13px;
+    outline: none;
+}
+
+.form-group input:focus, .form-group select:focus {
+    border-color: var(--vwsq-iris-500);
+}
+
+.device-meta-info {
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-console-text-dim);
+    margin-bottom: 14px;
+}
+
+.modal-divider {
+    border: none;
+    border-top: 1px solid var(--vwsq-console-border);
+    margin: 16px 0;
+}
+
+.modal-subtext {
+    font-size: 12px;
+    color: var(--vwsq-console-text-dim);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--vwsq-console-border);
+    background: var(--vwsq-console-sunken);
+}
+
+.playlists-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--vwsq-console-raised);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-sm);
+    cursor: pointer;
+}
+
+.picker-item:hover {
+    border-color: var(--vwsq-iris-500);
+    background: var(--vwsq-console-hover);
+}
+
+/* ======================================================== */
+/* ADAPTIVE / MOBILE QUERY                                  */
 /* ======================================================== */
 @media (max-width: 768px), (pointer: coarse) {
     .desktop-sidebar {
@@ -900,18 +1200,21 @@ body {
         display: flex;
     }
     .mini-player {
-        bottom: 60px; /* sits right above mobile bottom nav */
+        bottom: 60px;
     }
     .content-scroll-area {
         padding: 14px;
         padding-bottom: 140px;
     }
+    .home-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
     .track-action-btn span {
-        display: none; /* Icon-only buttons on small screens */
+        display: none;
     }
 }
 
-/* Forced Phone Mode toggle on Desktop */
 .phone-mode-active .desktop-sidebar {
     display: none !important;
 }

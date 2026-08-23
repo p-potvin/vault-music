@@ -4,5 +4,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 temp_music/
+data/
 *.pyc
 __pycache__/

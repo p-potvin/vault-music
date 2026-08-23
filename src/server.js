@@ -6,11 +6,13 @@ const config = require('./config');
 const { LibraryService } = require('./services/library-service');
 const { MetadataService } = require('./services/metadata-service');
 const { DownloadService } = require('./services/download-service');
+const { ProfileService } = require('./services/profile-service');
 
 const { createLibraryRouter } = require('./routes/library');
 const { createStreamRouter } = require('./routes/stream');
 const { createMetadataRouter } = require('./routes/metadata');
 const { createDownloadsRouter } = require('./routes/downloads');
+const { createProfilesRouter } = require('./routes/profiles');
 const { setupSwagger } = require('./docs/swagger');
 
 const app = express();
@@ -19,13 +21,14 @@ const app = express();
 app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Range', 'Authorization', 'x-vw-token']
+    allowedHeaders: ['Content-Type', 'Range', 'Authorization', 'x-vw-token', 'x-device-id']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Services Initialization
 const libraryService = new LibraryService(config.MUSIC_DIR);
+const profileService = new ProfileService();
 const metadataService = new MetadataService({
     localDbPath: config.LOCAL_DB_PATH,
     host: config.MUSICBRAINZ_HOST,
@@ -34,7 +37,6 @@ const metadataService = new MetadataService({
 const downloadService = new DownloadService({
     jackettUrl: config.JACKETT_URL,
     jackettApiKey: config.JACKETT_API_KEY,
-    cometUrl: config.COMET_URL,
     qbittorrentUrl: config.QBITTORRENT_URL,
     qbittorrentUser: config.QBITTORRENT_USER,
     qbittorrentPass: config.QBITTORRENT_PASS,
@@ -48,6 +50,7 @@ setupSwagger(app);
 const apiRouter = express.Router();
 apiRouter.use('/', createLibraryRouter(libraryService));
 apiRouter.use('/', createStreamRouter(libraryService));
+apiRouter.use('/profiles', createProfilesRouter(profileService, libraryService));
 apiRouter.use('/metadata', createMetadataRouter(metadataService, libraryService));
 apiRouter.use('/downloads', createDownloadsRouter(downloadService));
 
@@ -112,4 +115,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { app, libraryService, metadataService, downloadService };
+module.exports = { app, libraryService, metadataService, downloadService, profileService };

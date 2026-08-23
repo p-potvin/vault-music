@@ -30,15 +30,30 @@
                 </div>
             </div>
 
+            <!-- Active Device Profile Card -->
+            <div class="device-profile-card" id="btn-open-profile-modal" title="Click to manage profile or duplicate views">
+                <div class="device-card-header">
+                    <span class="device-icon">📱</span>
+                    <div class="device-texts">
+                        <span class="device-name" id="current-device-name">Loading...</span>
+                        <span class="device-id-sub" id="current-device-id-label">Tailscale Node</span>
+                    </div>
+                </div>
+                <button class="clone-quick-btn" title="Duplicate View">⇄ Clone View</button>
+            </div>
+
             <nav class="desktop-nav">
-                <button class="nav-btn active" data-tab="tracks">
+                <button class="nav-btn active" data-tab="home">
+                    <span class="icon">🏠</span> Device Home
+                </button>
+                <button class="nav-btn" data-tab="tracks">
                     <span class="icon">🎼</span> Tracks
                 </button>
                 <button class="nav-btn" data-tab="albums">
                     <span class="icon">💿</span> Albums
                 </button>
-                <button class="nav-btn" data-tab="artists">
-                    <span class="icon">🎤</span> Artists
+                <button class="nav-btn" data-tab="playlists">
+                    <span class="icon">📂</span> Shared Playlists (<span id="desktop-pl-count">0</span>)
                 </button>
                 <button class="nav-btn" data-tab="offline">
                     <span class="icon">💾</span> Offline Cached (<span class="offline-badge-count">0</span>)
@@ -72,13 +87,16 @@
             <!-- Mobile Top Header Bar -->
             <header class="mobile-header">
                 <div class="mobile-header-top">
-                    <div class="mobile-brand">
+                    <div class="mobile-brand" id="btn-mobile-open-profile">
                         <span class="logo-icon">🎵</span>
-                        <span class="brand-title">Vault Music</span>
+                        <div class="m-brand-texts">
+                            <span class="brand-title">Vault Music</span>
+                            <span class="m-device-tag" id="mobile-device-tag">📱 Phone</span>
+                        </div>
                     </div>
                     <div class="mobile-header-actions">
+                        <button id="btn-mobile-clone" class="icon-btn" title="Duplicate View from another device">⇄</button>
                         <button id="btn-phone-scan" class="icon-btn" title="Scan Library">🔄</button>
-                        <button id="btn-phone-docs" class="icon-btn" title="API Docs" onclick="window.open('/docs','_blank')">📖</button>
                     </div>
                 </div>
                 <div class="mobile-search-bar">
@@ -91,23 +109,57 @@
             <header class="desktop-header">
                 <div class="search-box">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="desktop-search-input" placeholder="Search songs, artists, albums...">
+                    <input type="text" id="desktop-search-input" placeholder="Search songs, artists, albums, playlists...">
                 </div>
 
                 <div class="desktop-header-actions">
+                    <button id="btn-new-playlist-top" class="btn btn-primary">
+                        <span>+</span> New Playlist
+                    </button>
                     <button id="btn-desktop-scan" class="btn btn-secondary">
                         <span>🔄</span> Scan Library
-                    </button>
-                    <button id="btn-populate-quick" class="btn btn-primary">
-                        <span>✨</span> Populate Metadata
                     </button>
                 </div>
             </header>
 
             <!-- Scrollable Content Panels -->
             <div class="content-scroll-area">
-                <!-- Tracks Tab -->
-                <section id="tab-tracks" class="tab-panel active">
+                <!-- Tab 1: Device Custom Home Screen -->
+                <section id="tab-home" class="tab-panel active">
+                    <div class="home-hero">
+                        <div class="home-hero-text">
+                            <h1 id="home-greeting">Welcome to Vault Music</h1>
+                            <p class="home-sub" id="home-device-desc">Custom Home View for this Tailscale Device</p>
+                        </div>
+                        <button id="btn-home-clone-view" class="btn btn-secondary">
+                            <span>⇄</span> Duplicate View from Another Device
+                        </button>
+                    </div>
+
+                    <!-- Pinned Playlists Section -->
+                    <div class="home-section">
+                        <div class="section-header">
+                            <h2>Pinned Playlists</h2>
+                            <button id="btn-manage-pinned-pl" class="text-link-btn" onclick="switchTab('playlists')">View All Playlists →</button>
+                        </div>
+                        <div class="pinned-playlists-grid" id="pinned-playlists-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Favorite Tracks Section -->
+                    <div class="home-section" style="margin-top: 24px;">
+                        <div class="section-header">
+                            <h2>Favorite Tracks (<span id="home-fav-count">0</span>)</h2>
+                        </div>
+                        <div class="tracks-container" id="home-favorites-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tab 2: Tracks Tab -->
+                <section id="tab-tracks" class="tab-panel">
                     <div class="section-header">
                         <h2>All Tracks (<span id="tracks-count">0</span>)</h2>
                         <div class="sort-controls">
@@ -124,7 +176,7 @@
                     </div>
                 </section>
 
-                <!-- Albums Tab -->
+                <!-- Tab 3: Albums Tab -->
                 <section id="tab-albums" class="tab-panel">
                     <div class="section-header">
                         <h2>Albums (<span id="albums-count">0</span>)</h2>
@@ -134,17 +186,21 @@
                     </div>
                 </section>
 
-                <!-- Artists Tab -->
-                <section id="tab-artists" class="tab-panel">
+                <!-- Tab 4: Shared Playlists Tab -->
+                <section id="tab-playlists" class="tab-panel">
                     <div class="section-header">
-                        <h2>Artists (<span id="artists-count">0</span>)</h2>
+                        <h2>Shared Playlists (All Devices)</h2>
+                        <button id="btn-create-playlist-main" class="btn btn-primary">+ Create Playlist</button>
                     </div>
-                    <div class="artists-grid" id="artists-grid">
+                    <p class="section-desc">
+                        Playlists are shared across all Tailscale devices. You can pin your favorite playlists to your personal device home screen.
+                    </p>
+                    <div class="playlists-grid" id="playlists-grid">
                         <!-- Populated dynamically -->
                     </div>
                 </section>
 
-                <!-- Offline Cache Tab -->
+                <!-- Tab 5: Offline Cache Tab -->
                 <section id="tab-offline" class="tab-panel">
                     <div class="section-header">
                         <h2>Offline Cached Music (PWA Storage)</h2>
@@ -158,7 +214,7 @@
                     </div>
                 </section>
 
-                <!-- Metadata Engine Tab -->
+                <!-- Tab 6: Metadata Engine Tab -->
                 <section id="tab-metadata" class="tab-panel">
                     <div class="section-header">
                         <h2>MusicBrainz Metadata Engine</h2>
@@ -181,7 +237,7 @@
                     </div>
                 </section>
 
-                <!-- Downloads & Search Tab -->
+                <!-- Tab 7: Downloads & Search Tab -->
                 <section id="tab-downloads" class="tab-panel">
                     <div class="section-header">
                         <h2>Search & Download Tracks (Local Jackett / qBittorrent)</h2>
@@ -224,6 +280,7 @@
                     </div>
 
                     <div class="mini-controls">
+                        <button id="btn-mini-fav" class="ctrl-btn" title="Favorite">🤍</button>
                         <button id="btn-mini-prev" class="ctrl-btn">⏮</button>
                         <button id="btn-mini-play" class="ctrl-btn play-circle">▶</button>
                         <button id="btn-mini-next" class="ctrl-btn">⏭</button>
@@ -233,13 +290,17 @@
 
             <!-- Mobile Bottom Tab Navigation -->
             <nav class="mobile-bottom-nav">
-                <button class="m-nav-item active" data-tab="tracks">
+                <button class="m-nav-item active" data-tab="home">
+                    <span class="m-icon">🏠</span>
+                    <span class="m-label">Home</span>
+                </button>
+                <button class="m-nav-item" data-tab="tracks">
                     <span class="m-icon">🎼</span>
                     <span class="m-label">Tracks</span>
                 </button>
-                <button class="m-nav-item" data-tab="albums">
-                    <span class="m-icon">💿</span>
-                    <span class="m-label">Albums</span>
+                <button class="m-nav-item" data-tab="playlists">
+                    <span class="m-icon">📂</span>
+                    <span class="m-label">Playlists</span>
                 </button>
                 <button class="m-nav-item" data-tab="offline">
                     <span class="m-icon">💾</span>
@@ -277,11 +338,87 @@
                 </div>
 
                 <div class="sheet-controls">
-                    <button id="btn-sheet-offline" class="sheet-sub-btn" title="Cache Offline">💾</button>
+                    <button id="btn-sheet-fav" class="sheet-sub-btn" title="Favorite">🤍</button>
                     <button id="btn-sheet-prev" class="sheet-ctrl-btn">⏮</button>
                     <button id="btn-sheet-play" class="sheet-play-btn">▶</button>
                     <button id="btn-sheet-next" class="sheet-ctrl-btn">⏭</button>
-                    <button id="btn-sheet-repeat" class="sheet-sub-btn" title="Repeat">🔁</button>
+                    <button id="btn-sheet-offline" class="sheet-sub-btn" title="Cache Offline">💾</button>
+                </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- MODALS                                                   -->
+            <!-- ======================================================== -->
+
+            <!-- Profile & Duplicate View Modal -->
+            <div class="modal-overlay" id="profile-modal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3>Device Profile & View Sync</h3>
+                        <button class="modal-close-btn" id="btn-close-profile-modal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>This Device Name:</label>
+                            <input type="text" id="input-device-name" placeholder="e.g. Philippe's iPhone">
+                        </div>
+                        <div class="device-meta-info" id="device-meta-details">
+                            Tailscale ID: ts-xxxx | IP: 100.71.101.21
+                        </div>
+
+                        <hr class="modal-divider">
+
+                        <h4>Duplicate View from Another Device</h4>
+                        <p class="modal-subtext">
+                            Instantly copy all pinned playlists, favorite tracks, and home screen customization from any other connected Tailscale device to this device.
+                        </p>
+                        <div class="form-group">
+                            <label>Select Source Device:</label>
+                            <select id="select-source-device">
+                                <option value="">Loading connected devices...</option>
+                            </select>
+                        </div>
+                        <button id="btn-confirm-clone-view" class="btn btn-primary" style="width: 100%;">
+                            <span>⇄</span> Duplicate Selected Device's View
+                        </button>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btn-save-profile-name" class="btn btn-secondary">Save Device Name</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Playlist Modal -->
+            <div class="modal-overlay" id="playlist-modal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3>Create Shared Playlist</h3>
+                        <button class="modal-close-btn" id="btn-close-playlist-modal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Playlist Name:</label>
+                            <input type="text" id="input-playlist-name" placeholder="e.g. Late Night Synthwave">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btn-confirm-create-pl" class="btn btn-primary">Create Playlist</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add to Playlist Picker Modal -->
+            <div class="modal-overlay" id="add-to-playlist-modal">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3>Add to Playlist</h3>
+                        <button class="modal-close-btn" id="btn-close-add-pl-modal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="playlists-picker-list" id="playlists-picker-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
