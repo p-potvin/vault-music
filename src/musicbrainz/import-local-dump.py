@@ -12,6 +12,13 @@ import sqlite3
 import argparse
 from pathlib import Path
 
+# Ensure UTF-8 output encoding on Windows console
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Import MusicBrainz TSV dump into high-speed local SQLite database")
     parser.add_argument("--dump-dir", default=r"I:\Musicbrainz\Datadump-20260822\mbdump", help="Path to extracted mbdump directory")
@@ -129,7 +136,7 @@ def import_artist_credits(conn, dump_dir, limit=0):
         cur.executemany("INSERT OR REPLACE INTO artist_credits (id, name) VALUES (?, ?)", batch)
         conn.commit()
         total += len(batch)
-    print(f"\r  ✓ {total:,} artist credits imported in {time.time()-t0:.1f}s")
+    print(f"\r  [OK] {total:,} artist credits imported in {time.time()-t0:.1f}s")
 
 def import_releases(conn, dump_dir, limit=0):
     path = os.path.join(dump_dir, "release")
@@ -164,8 +171,8 @@ def import_releases(conn, dump_dir, limit=0):
         cur.executemany("INSERT OR REPLACE INTO releases (id, gid, name, artist_credit_id, release_group_id) VALUES (?, ?, ?, ?, ?)", batch)
         conn.commit()
         total += len(batch)
-    print(f"\r  ✓ {total:,} releases imported in {time.time()-t0:.1f}s")
-
+    print(f"\r  [OK] {total:,} releases imported in {time.time()-t0:.1f}s")
+ 
 def import_recordings(conn, dump_dir, limit=0):
     path = os.path.join(dump_dir, "recording")
     if not os.path.exists(path):
@@ -199,7 +206,7 @@ def import_recordings(conn, dump_dir, limit=0):
         cur.executemany("INSERT OR REPLACE INTO recordings (id, gid, name, artist_credit_id, length) VALUES (?, ?, ?, ?, ?)", batch)
         conn.commit()
         total += len(batch)
-    print(f"\r  ✓ {total:,} recordings imported in {time.time()-t0:.1f}s")
+    print(f"\r  [OK] {total:,} recordings imported in {time.time()-t0:.1f}s")
 
 def build_indexes(conn):
     print("\n[3/5] Building performance indexes...")
@@ -212,7 +219,7 @@ def build_indexes(conn):
     CREATE INDEX IF NOT EXISTS idx_rel_ac ON releases(artist_credit_id);
     """)
     conn.commit()
-    print(f"✓ Indexes created in {time.time()-t0:.1f}s")
+    print(f"[OK] Indexes created in {time.time()-t0:.1f}s")
 
 def main():
     args = parse_args()
