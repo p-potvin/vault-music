@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { LidarrService } = require('./lidarr-service');
 
 class DownloadService {
     constructor(options = {}) {
@@ -12,11 +13,15 @@ class DownloadService {
         this.qbittorrentUser = options.qbittorrentUser || config.QBITTORRENT_USER;
         this.qbittorrentPass = options.qbittorrentPass || config.QBITTORRENT_PASS;
         this.downloadsDir = options.downloadsDir || config.DOWNLOADS_DIR;
+        this.lidarrService = new LidarrService({
+            lidarrUrl: options.lidarrUrl || config.LIDARR_URL,
+            apiKey: options.lidarrApiKey || config.LIDARR_API_KEY
+        });
         this.qbitCookie = null;
     }
 
     _request(url, reqOptions = {}) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const parsedUrl = new URL(url);
             const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
@@ -66,10 +71,11 @@ class DownloadService {
      */
     async getIndexers() {
         const indexers = [
-            { id: 'all', name: 'All Configured Indexers' }
+            { id: 'all', name: 'All Configured Indexers' },
+            { id: 'lidarr', name: 'Lidarr (OVH Media Stack)' }
         ];
 
-        // 1. Check Jackett Indexers directory on Windows
+        // Check Jackett Indexers directory on Windows
         const indexersDir = 'C:\\ProgramData\\Jackett\\Indexers';
         if (fs.existsSync(indexersDir)) {
             try {
@@ -88,64 +94,95 @@ class DownloadService {
     }
 
     /**
-     * Search torrents with custom indexer, category, and server-side music filter.
+     * Search torrents / releases via Jackett and/or Lidarr.
      */
     async searchTorrents(query, { indexer = 'all', category = 3000, filterMusic = false, timeout = 12000 } = {}) {
-        if (!this.jackettUrl || !this.jackettApiKey) {
-            return { query, total: 0, results: [], error: 'Jackett is not configured' };
+        let results = [];
+
+        // If indexer is explicitly 'lidarr', search Lidarr releases only
+        if (indexer === 'lidarr') {
+            const lidarrRes = await this.lidarrService.searchReleases(query);
+            return {
+                query,
+                indexer: 'lidarr',
+                category,
+                filterMusic,
+                total: lidarrRes.total || 0,
+                results: lidarrRes.results || []
+            };
         }
 
-        const targetIndexer = indexer || 'all';
-        let endpoint = `${this.jackettUrl}/api/v2.0/indexers/${encodeURIComponent(targetIndexer)}/results?apikey=${encodeURIComponent(this.jackettApiKey)}&Query=${encodeURIComponent(query)}`;
+        // 1. Search Jackett
+        if (this.jackettUrl && this.jackettApiKey) {
+            const targetIndexer = indexer || 'all';
+            let endpoint = `${this.jackettUrl}/api/v2.0/indexers/${encodeURIComponent(targetIndexer)}/results?apikey=${encodeURIComponent(this.jackettApiKey)}&Query=${encodeURIComponent(query)}`;
 
-        if (category && category !== 'all' && category !== '0') {
-            endpoint += `&Category=${encodeURIComponent(category)}`;
+            if (category && category !== 'all' && category !== '0') {
+                endpoint += `&Category=${encodeURIComponent(category)}`;
+            }
+
+            const res = await this._request(endpoint, { timeout });
+            if (!res.error && res.data && Array.isArray(res.data.Results)) {
+                const jackettResults = res.data.Results.map(item => ({
+                    title: item.Title,
+                    tracker: item.Tracker,
+                    size: item.Size,
+                    formattedSize: this._formatBytes(item.Size),
+                    seeders: item.Seeders || 0,
+                    leechers: item.Peers || 0,
+                    categoryDesc: item.CategoryDesc || 'Audio',
+                    publishDate: item.PublishDate,
+                    magnetUri: item.MagnetUri || null,
+                    link: item.Link || null,
+                    source: 'jackett'
+                }));
+                results.push(...jackettResults);
+            }
         }
 
-        const res = await this._request(endpoint, { timeout });
-        if (res.error) {
-            return { query, total: 0, results: [], error: res.error };
+        // 2. If indexer is 'all', also query Lidarr releases as supplemental provider
+        if (indexer === 'all') {
+            try {
+                const lidarrRes = await this.lidarrService.searchReleases(query);
+                if (lidarrRes && Array.isArray(lidarrRes.results)) {
+                    results.push(...lidarrRes.results);
+                }
+            } catch (_) {}
         }
 
-        const rawResults = res.data && Array.isArray(res.data.Results) ? res.data.Results : [];
-        let results = rawResults.map(item => ({
-            title: item.Title,
-            tracker: item.Tracker,
-            size: item.Size,
-            formattedSize: this._formatBytes(item.Size),
-            seeders: item.Seeders || 0,
-            leechers: item.Peers || 0,
-            categoryDesc: item.CategoryDesc || 'Audio',
-            publishDate: item.PublishDate,
-            magnetUri: item.MagnetUri || null,
-            link: item.Link || null,
-            source: 'jackett'
-        }));
-
-        // Server-side music filter fallback if indexer is general or un-categorized
+        // Server-side music filter fallback
         if (filterMusic) {
             const musicRegex = /\b(flac|mp3|320kbps|320|lossless|alac|aac|wav|ogg|vinyl|cd|discography|album|ep|single|remaster|soundtrack|ost|audio)\b/i;
             const videoExcludeRegex = /\b(1080p|720p|2160p|4k|hdr|hevc|x264|x265|bluray|bdrip|webrip|dvdrip|hdtv|s\d{2}e\d{2}|season\s*\d+)\b/i;
 
             results = results.filter(r => {
                 const title = r.title || '';
-                // Keep if title matches music indicators or is explicitly marked Audio category
                 const isAudioCat = (r.categoryDesc || '').toLowerCase().includes('audio') || (r.categoryDesc || '').toLowerCase().includes('music');
                 if (isAudioCat) return true;
                 return musicRegex.test(title) && !videoExcludeRegex.test(title);
             });
         }
 
-        // Sort by seeders descending
-        results.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
+        // Deduplicate by title/guid and sort by seeders descending
+        const seen = new Set();
+        const uniqueResults = [];
+        for (const r of results) {
+            const key = (r.title || '').trim().toLowerCase();
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueResults.push(r);
+            }
+        }
+
+        uniqueResults.sort((a, b) => (b.seeders || 0) - (a.seeders || 0));
 
         return {
             query,
-            indexer: targetIndexer,
+            indexer: indexer || 'all',
             category,
             filterMusic,
-            total: results.length,
-            results
+            total: uniqueResults.length,
+            results: uniqueResults
         };
     }
 
@@ -183,7 +220,7 @@ class DownloadService {
             }
         }
 
-        return res.status === 200 && res.raw.includes('Ok.');
+        return res.status === 200 && res.raw && res.raw.includes('Ok.');
     }
 
     /**
@@ -241,36 +278,48 @@ class DownloadService {
     }
 
     /**
-     * Get active download queue from local qBittorrent.
+     * Get active download queue from both local qBittorrent and OVH Lidarr.
      */
     async getDownloadQueue({ category = '' } = {}) {
-        await this._ensureQbitAuth();
+        const items = [];
 
-        let url = `${this.qbittorrentUrl}/api/v2/torrents/info`;
-        if (category) url += `?category=${encodeURIComponent(category)}`;
+        // 1. Fetch qBittorrent queue
+        try {
+            await this._ensureQbitAuth();
+            let url = `${this.qbittorrentUrl}/api/v2/torrents/info`;
+            if (category) url += `?category=${encodeURIComponent(category)}`;
 
-        const headers = {};
-        if (this.qbitCookie) headers['Cookie'] = this.qbitCookie;
+            const headers = {};
+            if (this.qbitCookie) headers['Cookie'] = this.qbitCookie;
 
-        const res = await this._request(url, { headers });
-        if (res.error) {
-            return { success: false, error: res.error, items: [] };
-        }
+            const res = await this._request(url, { headers });
+            if (!res.error && Array.isArray(res.data)) {
+                const qbItems = res.data.map(t => ({
+                    id: t.hash,
+                    name: t.name,
+                    size: t.size,
+                    formattedSize: this._formatBytes(t.size),
+                    progress: (t.progress * 100).toFixed(1) + '%',
+                    progressPct: Math.round(t.progress * 100),
+                    downloadSpeed: this._formatBytes(t.dlspeed) + '/s',
+                    uploadSpeed: this._formatBytes(t.upspeed) + '/s',
+                    state: t.state,
+                    eta: t.eta,
+                    category: t.category,
+                    savePath: t.save_path,
+                    source: 'qbittorrent'
+                }));
+                items.push(...qbItems);
+            }
+        } catch (_) {}
 
-        const items = Array.isArray(res.data) ? res.data.map(t => ({
-            hash: t.hash,
-            name: t.name,
-            size: t.size,
-            formattedSize: this._formatBytes(t.size),
-            progress: (t.progress * 100).toFixed(1) + '%',
-            progressPct: Math.round(t.progress * 100),
-            downloadSpeed: this._formatBytes(t.dlspeed) + '/s',
-            uploadSpeed: this._formatBytes(t.upspeed) + '/s',
-            state: t.state,
-            eta: t.eta,
-            category: t.category,
-            savePath: t.save_path
-        })) : [];
+        // 2. Fetch Lidarr queue
+        try {
+            const lidarrQueue = await this.lidarrService.getQueue();
+            if (lidarrQueue && Array.isArray(lidarrQueue.items)) {
+                items.push(...lidarrQueue.items);
+            }
+        } catch (_) {}
 
         return {
             success: true,

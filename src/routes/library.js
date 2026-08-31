@@ -10,7 +10,7 @@ function createLibraryRouter(libraryService) {
             artist,
             album,
             page: page ? parseInt(page, 10) : 1,
-            limit: limit ? parseInt(limit, 10) : 50,
+            limit: limit ? parseInt(limit, 10) : 100,
             sort: sort || 'title',
             order: order || 'asc'
         });
@@ -28,7 +28,7 @@ function createLibraryRouter(libraryService) {
         const data = libraryService.listAlbums({
             query,
             page: page ? parseInt(page, 10) : 1,
-            limit: limit ? parseInt(limit, 10) : 50
+            limit: limit ? parseInt(limit, 10) : 100
         });
         res.json(data);
     });
@@ -44,16 +44,18 @@ function createLibraryRouter(libraryService) {
         const data = libraryService.listArtists({
             query,
             page: page ? parseInt(page, 10) : 1,
-            limit: limit ? parseInt(limit, 10) : 50
+            limit: limit ? parseInt(limit, 10) : 100
         });
         res.json(data);
     });
 
     router.get('/artists/:name', (req, res) => {
-        const artist = libraryService.getArtist(decodeURIComponent(req.params.name));
+        const artistName = decodeURIComponent(req.params.name);
+        const artist = libraryService.getArtist(artistName);
         if (!artist) return res.status(404).json({ error: 'Artist not found' });
-        const tracks = libraryService.listTracks({ artist: artist.name, limit: 500 }).tracks;
-        res.json({ ...artist, tracks });
+        const tracks = libraryService.listTracks({ artist: artist.name, limit: 1000 }).tracks;
+        const albumList = (artist.albums || []).map(id => libraryService.getAlbum(id)).filter(Boolean);
+        res.json({ ...artist, albums: albumList, tracks });
     });
 
     router.post('/scan', (req, res) => {

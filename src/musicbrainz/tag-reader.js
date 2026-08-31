@@ -5,6 +5,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 
 function cleanString(str) {
     if (!str) return '';
@@ -109,6 +110,83 @@ function readID3v2(fd, fileSize) {
 }
 
 /**
+ * Parse Vorbis comments from a buffer slice.
+ */
+function parseVorbisCommentBuffer(buf, startOffset) {
+    const tags = {};
+    try {
+        let pos = startOffset;
+        if (pos + 4 > buf.length) return null;
+        const vendorLen = buf.readUInt32LE(pos);
+        pos += 4 + vendorLen;
+        if (pos + 4 > buf.length) return null;
+
+        const numComments = buf.readUInt32LE(pos);
+        pos += 4;
+
+        for (let i = 0; i < numComments && pos < buf.length; i++) {
+            if (pos + 4 > buf.length) break;
+            const cLen = buf.readUInt32LE(pos);
+            pos += 4;
+            if (pos + cLen > buf.length) break;
+
+            const comment = buf.toString('utf8', pos, pos + cLen);
+            pos += cLen;
+
+            const eqIdx = comment.indexOf('=');
+            if (eqIdx !== -1) {
+                const key = comment.substring(0, eqIdx).toUpperCase().trim();
+                const val = cleanString(comment.substring(eqIdx + 1));
+
+                if (key === 'TITLE') tags.title = val;
+                else if (key === 'ARTIST' && !tags.artist) tags.artist = val;
+                else if (key === 'ALBUMARTIST' || key === 'ALBUM ARTIST') tags.albumArtist = val;
+                else if (key === 'ALBUM') tags.album = val;
+                else if (key === 'DATE' || key === 'YEAR') tags.year = val.split('-')[0];
+                else if (key === 'TRACKNUMBER' || key === 'TRACK') tags.track = val;
+                else if (key === 'GENRE') tags.genre = val;
+            }
+        }
+    } catch (_) {}
+    return Object.keys(tags).length > 0 ? tags : null;
+}
+
+/**
+ * Read Vorbis comments from FLAC file.
+ */
+function readFLAC(fd, fileSize) {
+    if (fileSize < 8) return null;
+    const header = Buffer.alloc(Math.min(fileSize, 256 * 1024));
+    fs.readSync(fd, header, 0, header.length, 0);
+
+    if (header.toString('ascii', 0, 4) !== 'fLaC') return null;
+
+    let pos = 4;
+    while (pos + 4 < header.length) {
+        const isLast = (header[pos] & 0x80) !== 0;
+        const blockType = header[pos] & 0x7F;
+        const blockLen = (header[pos + 1] << 16) | (header[pos + 2] << 8) | header[pos + 3];
+        pos += 4;
+
+        if (blockType === 4) { // VORBIS_COMMENT
+            const commentBlock = (pos + blockLen <= header.length)
+                ? header
+                : (() => {
+                    const blockBuf = Buffer.alloc(blockLen);
+                    fs.readSync(fd, blockBuf, 0, blockLen, pos);
+                    return blockBuf;
+                })();
+            const start = (pos + blockLen <= header.length) ? pos : 0;
+            return parseVorbisCommentBuffer(commentBlock, start);
+        }
+
+        pos += blockLen;
+        if (isLast) break;
+    }
+    return null;
+}
+
+/**
  * Extract audio metadata from file or fallback to directory structure.
  */
 function extractAudioFileMetadata(filePath) {
@@ -116,6 +194,7 @@ function extractAudioFileMetadata(filePath) {
     const filename = parts.pop() || '';
     const albumFolder = parts.pop() || '';
     const artistFolder = parts.pop() || '';
+    const ext = path.extname(filePath).toLowerCase();
 
     const cleanTitle = cleanSongFilename(filename);
 
@@ -137,21 +216,34 @@ function extractAudioFileMetadata(filePath) {
         const stats = fs.statSync(filePath);
         const fd = fs.openSync(filePath, 'r');
         try {
-            const id3v2 = readID3v2(fd, stats.size);
-            if (id3v2) {
-                meta.embeddedTitle = id3v2.title || '';
-                meta.embeddedArtist = id3v2.artist || '';
-                meta.embeddedAlbum = id3v2.album || '';
-                meta.embeddedYear = id3v2.year || '';
-                meta.embeddedTrack = id3v2.track || '';
-                meta.embeddedGenre = id3v2.genre || '';
+            if (ext === '.flac' || ext === '.ogg') {
+                const flacTags = readFLAC(fd, stats.size);
+                if (flacTags) {
+                    meta.embeddedTitle = flacTags.title || '';
+                    meta.embeddedArtist = flacTags.artist || flacTags.albumArtist || '';
+                    meta.embeddedAlbum = flacTags.album || '';
+                    meta.embeddedYear = flacTags.year || '';
+                    meta.embeddedTrack = flacTags.track || '';
+                    meta.embeddedAlbumArtist = flacTags.albumArtist || '';
+                    meta.embeddedGenre = flacTags.genre || '';
+                }
             } else {
-                const id3v1 = readID3v1(fd, stats.size);
-                if (id3v1) {
-                    meta.embeddedTitle = id3v1.title || '';
-                    meta.embeddedArtist = id3v1.artist || '';
-                    meta.embeddedAlbum = id3v1.album || '';
-                    meta.embeddedYear = id3v1.year || '';
+                const id3v2 = readID3v2(fd, stats.size);
+                if (id3v2) {
+                    meta.embeddedTitle = id3v2.title || '';
+                    meta.embeddedArtist = id3v2.artist || '';
+                    meta.embeddedAlbum = id3v2.album || '';
+                    meta.embeddedYear = id3v2.year || '';
+                    meta.embeddedTrack = id3v2.track || '';
+                    meta.embeddedGenre = id3v2.genre || '';
+                } else {
+                    const id3v1 = readID3v1(fd, stats.size);
+                    if (id3v1) {
+                        meta.embeddedTitle = id3v1.title || '';
+                        meta.embeddedArtist = id3v1.artist || '';
+                        meta.embeddedAlbum = id3v1.album || '';
+                        meta.embeddedYear = id3v1.year || '';
+                    }
                 }
             }
         } finally {
@@ -162,11 +254,15 @@ function extractAudioFileMetadata(filePath) {
     meta.effectiveTitle = meta.embeddedTitle || meta.inferredTitle;
     meta.effectiveArtist = meta.embeddedArtist || meta.inferredArtist;
     meta.effectiveAlbum = meta.embeddedAlbum || meta.inferredAlbum;
+    meta.effectiveAlbumArtist = meta.embeddedAlbumArtist || (meta.effectiveArtist ? meta.effectiveArtist.split(/[,;&]|\s+feat\.\s+|\s+ft\.\s+/i)[0].trim() : '');
 
     return meta;
 }
 
 module.exports = {
     cleanSongFilename,
-    extractAudioFileMetadata
+    extractAudioFileMetadata,
+    readFLAC,
+    readID3v2,
+    readID3v1
 };

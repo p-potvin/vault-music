@@ -53,6 +53,7 @@ async function testPwaAndDownload() {
         fs.writeFileSync(mockAudioPath, Buffer.alloc(5000, 0xBB));
 
         libraryService.musicDir = path.join(__dirname, 'temp_pwa_music');
+        libraryService.musicDirs = [path.join(__dirname, 'temp_pwa_music')];
         libraryService.scanLibrary();
         const tracks = libraryService.listTracks().tracks;
         assert.ok(tracks.length > 0);

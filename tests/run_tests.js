@@ -8,7 +8,11 @@ const testSuites = [
     { name: 'PWA & Direct iOS Downloads', script: 'tests/pwa_download_test.js' },
     { name: 'Profiles & View Duplication', script: 'tests/profiles_test.js' },
     { name: 'Swagger & OpenAPI Documentation', script: 'tests/swagger_docs_test.js' },
-    { name: 'Metadata & MusicBrainz Engine', script: 'tests/metadata_test.js' }
+    { name: 'Metadata & MusicBrainz Engine', script: 'tests/metadata_test.js' },
+    { name: 'FLAC Vorbis Tag Extraction', script: 'tests/flac_tag_test.js' },
+    { name: 'Library, Artists, Albums & Search', script: 'tests/library_search_test.js' },
+    { name: 'Lidarr Integration & OVH Media Stack', script: 'tests/lidarr_test.js' },
+    { name: 'Apple Music Reconstructor & Jackett Pipeline', script: 'tests/apple_music_reconstructor_test.js' }
 ];
 
 console.log('===============================================================');

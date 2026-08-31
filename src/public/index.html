@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- v1.1.0 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Vault Music</title>
@@ -19,6 +20,7 @@
     <link rel="shortcut icon" href="/favicon.png">
 
     <link rel="stylesheet" href="style.css">
+    <script src="icons.js"></script>
 </head>
 <body class="vaultsqware-theme">
     <div class="app-container" id="app-container">
@@ -27,7 +29,9 @@
         <!-- ======================================================== -->
         <aside class="desktop-sidebar">
             <div class="logo">
-                <div class="logo-icon">🎵</div>
+                <div class="logo-icon-svg">
+                    <svg class="v-icon brand-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                </div>
                 <div class="logo-text">
                     <span class="brand">Vault Music</span>
                     <span class="badge">vaultsqware</span>
@@ -37,45 +41,63 @@
             <!-- Active Device Profile Card -->
             <div class="device-profile-card" id="btn-open-profile-modal" title="Click to manage profile or duplicate views">
                 <div class="device-card-header">
-                    <span class="device-icon">📱</span>
+                    <span class="device-icon-svg">
+                        <svg class="v-icon icon-smartphone" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </span>
                     <div class="device-texts">
                         <span class="device-name" id="current-device-name">Loading...</span>
                         <span class="device-id-sub" id="current-device-id-label">Tailscale Node</span>
                     </div>
                 </div>
-                <button class="clone-quick-btn" title="Duplicate View">⇄ Clone View</button>
+                <button class="clone-quick-btn" title="Duplicate View">
+                    <svg class="v-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>Clone View</span>
+                </button>
             </div>
 
             <nav class="desktop-nav">
                 <button class="nav-btn active" data-tab="home">
-                    <span class="icon">🏠</span> Listen Now
+                    <span class="nav-icon-wrap" id="nav-icon-home"></span>
+                    <span class="nav-label">Listen Now</span>
                 </button>
                 <button class="nav-btn" data-tab="tracks">
-                    <span class="icon">🎼</span> Songs
+                    <span class="nav-icon-wrap" id="nav-icon-tracks"></span>
+                    <span class="nav-label">Songs</span>
+                </button>
+                <button class="nav-btn" data-tab="artists">
+                    <span class="nav-icon-wrap" id="nav-icon-artists"></span>
+                    <span class="nav-label">Artists</span>
                 </button>
                 <button class="nav-btn" data-tab="albums">
-                    <span class="icon">💿</span> Albums
+                    <span class="nav-icon-wrap" id="nav-icon-albums"></span>
+                    <span class="nav-label">Albums</span>
                 </button>
                 <button class="nav-btn" data-tab="playlists">
-                    <span class="icon">📂</span> Playlists (<span id="desktop-pl-count">0</span>)
+                    <span class="nav-icon-wrap" id="nav-icon-playlists"></span>
+                    <span class="nav-label">Playlists (<span id="desktop-pl-count">0</span>)</span>
                 </button>
                 <button class="nav-btn" data-tab="offline">
-                    <span class="icon">💾</span> Downloaded (<span class="offline-badge-count">0</span>)
+                    <span class="nav-icon-wrap" id="nav-icon-offline"></span>
+                    <span class="nav-label">Downloaded (<span class="offline-badge-count">0</span>)</span>
                 </button>
                 <button class="nav-btn" data-tab="metadata">
-                    <span class="icon">✨</span> MusicBrainz Engine
+                    <span class="nav-icon-wrap" id="nav-icon-metadata"></span>
+                    <span class="nav-label">MusicBrainz</span>
                 </button>
                 <button class="nav-btn" data-tab="downloads">
-                    <span class="icon">⚡</span> Search & Download
+                    <span class="nav-icon-wrap" id="nav-icon-downloads"></span>
+                    <span class="nav-label">Search & Download</span>
                 </button>
             </nav>
 
             <div class="sidebar-footer">
                 <button id="btn-switch-mode" class="mode-toggle-btn">
-                    <span>📱 Switch to Phone UI</span>
+                    <span id="btn-switch-mode-icon"></span>
+                    <span id="btn-switch-mode-text">Switch to Phone UI</span>
                 </button>
                 <a href="/docs" target="_blank" class="api-docs-link">
-                    <span class="icon">📖</span> OpenAPI / Swagger
+                    <span id="nav-icon-docs"></span>
+                    <span>OpenAPI / Swagger</span>
                 </a>
                 <div class="server-status">
                     <span class="status-dot online"></span>
@@ -87,38 +109,46 @@
         <!-- ======================================================== -->
         <!-- MAIN VIEWPORT (Apple Music Layout)                       -->
         <!-- ======================================================== -->
-        <main class="main-viewport">
+        <main class="main-viewport" id="main-viewport">
             <!-- Mobile Top iOS Bar -->
             <header class="mobile-top-bar">
                 <div class="ios-profile-pill" id="btn-mobile-open-profile">
                     <span class="pill-dot online"></span>
                     <span id="mobile-device-tag">iPhone</span>
-                    <span class="pill-arrow">⇄</span>
+                    <span class="pill-arrow-svg">
+                        <svg class="v-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </span>
                 </div>
                 <div class="mobile-top-actions">
-                    <button id="btn-phone-scan" class="ios-circle-btn" title="Scan Library">🔄</button>
+                    <button id="btn-phone-scan" class="ios-circle-btn" title="Scan Library">
+                        <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    </button>
                 </div>
             </header>
 
             <!-- Desktop Top Header Bar -->
             <header class="desktop-header">
                 <div class="search-box">
-                    <span class="search-icon">🔍</span>
+                    <span class="search-icon-svg">
+                        <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </span>
                     <input type="text" id="desktop-search-input" placeholder="Search songs, artists, albums, playlists...">
                 </div>
 
                 <div class="desktop-header-actions">
                     <button id="btn-new-playlist-top" class="btn btn-primary">
-                        <span>+</span> New Playlist
+                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>New Playlist</span>
                     </button>
                     <button id="btn-desktop-scan" class="btn btn-secondary">
-                        <span>🔄</span> Scan Library
+                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <span>Scan Library</span>
                     </button>
                 </div>
             </header>
 
             <!-- Scrollable Content Panels -->
-            <div class="content-scroll-area">
+            <div class="content-scroll-area" id="content-scroll-area">
                 <!-- Tab 1: Listen Now (Home) -->
                 <section id="tab-home" class="tab-panel active">
                     <div class="ios-page-header">
@@ -150,14 +180,25 @@
 
                 <!-- Tab 2: Songs Tab -->
                 <section id="tab-tracks" class="tab-panel">
-                    <div class="ios-page-header">
-                        <h1 class="ios-large-title">Songs</h1>
-                        <span class="ios-sub-count"><span id="tracks-count">0</span> songs</span>
+                    <div class="ios-page-header flex-between">
+                        <div>
+                            <h1 class="ios-large-title">Songs</h1>
+                            <span class="ios-sub-count"><span id="tracks-count">0</span> songs</span>
+                        </div>
+                        <button class="ios-pill-btn btn-secondary-pill" id="btn-shuffle-tracks-all" title="Shuffle All Songs">
+                            <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                            <span>Shuffle All</span>
+                        </button>
                     </div>
 
                     <div class="ios-search-bar">
-                        <span class="search-icon">🔍</span>
+                        <span class="search-icon-svg">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </span>
                         <input type="text" id="phone-search-input" placeholder="Find in songs...">
+                        <button class="search-clear-btn" id="btn-clear-track-search" style="display:none;" title="Clear search">
+                            <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
 
                     <div class="tracks-container" id="tracks-container" style="margin-top: 14px;">
@@ -165,28 +206,183 @@
                     </div>
                 </section>
 
+                <!-- Tab: Artists Tab -->
+                <section id="tab-artists" class="tab-panel">
+                    <div id="artists-main-view">
+                        <div class="ios-page-header">
+                            <h1 class="ios-large-title">Artists</h1>
+                            <span class="ios-sub-count"><span id="artists-count">0</span> artists</span>
+                        </div>
+
+                        <div class="ios-search-bar">
+                            <span class="search-icon-svg">
+                                <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </span>
+                            <input type="text" id="artists-search-input" placeholder="Find in artists...">
+                            <button class="search-clear-btn" id="btn-clear-artist-search" style="display:none;" title="Clear search">
+                                <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="artists-grid" id="artists-grid" style="margin-top: 20px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Artist Detail Sub-View -->
+                    <div id="artist-detail-view" class="sub-detail-view" style="display: none;">
+                        <button class="back-nav-btn" id="btn-back-to-artists">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            <span>All Artists</span>
+                        </button>
+                        <div class="artist-header-hero">
+                            <div class="artist-hero-avatar" id="artist-hero-avatar"></div>
+                            <div class="artist-hero-info">
+                                <h1 class="artist-hero-name" id="artist-hero-name">Artist Name</h1>
+                                <div class="artist-hero-meta" id="artist-hero-meta">0 albums • 0 songs</div>
+                                <div class="artist-hero-actions">
+                                    <button class="ios-pill-btn btn-primary" id="btn-play-artist-all">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        <span>Play All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-shuffle-artist-all" title="Shuffle Artist Songs">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                                        <span>Shuffle All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-download-artist-all" title="Download all songs from artist offline">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span class="btn-text">Download All</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ios-section" id="artist-albums-section" style="margin-top: 28px;">
+                            <h2 class="ios-section-title">Albums</h2>
+                            <div class="albums-grid" id="artist-albums-grid" style="margin-top: 12px;"></div>
+                        </div>
+
+                        <div class="ios-section" style="margin-top: 28px;">
+                            <h2 class="ios-section-title">Songs</h2>
+                            <div class="tracks-container" id="artist-tracks-container" style="margin-top: 12px;"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Tab 3: Albums Tab -->
                 <section id="tab-albums" class="tab-panel">
-                    <div class="ios-page-header">
-                        <h1 class="ios-large-title">Albums</h1>
-                        <span class="ios-sub-count"><span id="albums-count">0</span> albums</span>
+                    <div id="albums-main-view">
+                        <div class="ios-page-header">
+                            <h1 class="ios-large-title">Albums</h1>
+                            <span class="ios-sub-count"><span id="albums-count">0</span> albums</span>
+                        </div>
+
+                        <div class="ios-search-bar">
+                            <span class="search-icon-svg">
+                                <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </span>
+                            <input type="text" id="albums-search-input" placeholder="Find in albums...">
+                            <button class="search-clear-btn" id="btn-clear-album-search" style="display:none;" title="Clear search">
+                                <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+
+                        <div class="albums-grid" id="albums-grid" style="margin-top: 20px;">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
-                    <div class="albums-grid" id="albums-grid">
-                        <!-- Populated dynamically -->
+
+                    <!-- Album Detail Sub-View -->
+                    <div id="album-detail-view" class="sub-detail-view" style="display: none;">
+                        <button class="back-nav-btn" id="btn-back-to-albums">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            <span>All Albums</span>
+                        </button>
+                        <div class="album-header-hero">
+                            <div class="album-hero-cover" id="album-hero-cover"></div>
+                            <div class="album-hero-info">
+                                <h1 class="album-hero-title" id="album-hero-title">Album Title</h1>
+                                <div class="album-hero-artist" id="album-hero-artist">Artist Name</div>
+                                <div class="album-hero-meta" id="album-hero-meta">Year • 0 tracks</div>
+                                <div class="album-hero-actions">
+                                    <button class="ios-pill-btn btn-primary" id="btn-play-album-all">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        <span>Play Album</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-shuffle-album-all" title="Shuffle Album Tracks">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                                        <span>Shuffle All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-download-album-all" title="Download entire album offline">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span class="btn-text">Download Album</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tracks-container" id="album-tracks-container" style="margin-top: 24px;">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
                 </section>
 
                 <!-- Tab 4: Playlists Tab -->
                 <section id="tab-playlists" class="tab-panel">
-                    <div class="ios-page-header flex-between">
-                        <div>
-                            <h1 class="ios-large-title">Playlists</h1>
-                            <span class="ios-sub-count">Shared Tailnet library</span>
+                    <div id="playlists-main-view">
+                        <div class="ios-page-header flex-between">
+                            <div>
+                                <h1 class="ios-large-title">Playlists</h1>
+                                <span class="ios-sub-count">Shared Tailnet library</span>
+                            </div>
+                            <button id="btn-create-playlist-main" class="ios-pill-btn">
+                                <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                <span>New</span>
+                            </button>
                         </div>
-                        <button id="btn-create-playlist-main" class="ios-pill-btn">+ New</button>
+                        <div class="playlists-grid" id="playlists-grid">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
-                    <div class="playlists-grid" id="playlists-grid">
-                        <!-- Populated dynamically -->
+
+                    <!-- Playlist Detail Sub-View -->
+                    <div id="playlist-detail-view" class="sub-detail-view" style="display: none;">
+                        <button class="back-nav-btn" id="btn-back-to-playlists">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            <span>All Playlists</span>
+                        </button>
+                        <div class="playlist-header-hero">
+                            <div class="playlist-hero-cover" id="playlist-hero-cover">
+                                <svg class="v-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <div class="playlist-hero-info">
+                                <h1 class="playlist-hero-name" id="playlist-hero-name">Playlist Name</h1>
+                                <div class="playlist-hero-owner" id="playlist-hero-owner">Shared Playlist</div>
+                                <div class="playlist-hero-meta" id="playlist-hero-meta">0 track(s)</div>
+                                <div class="playlist-hero-actions">
+                                    <button class="ios-pill-btn btn-primary" id="btn-play-playlist-all">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                        <span>Play All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-shuffle-playlist-all" title="Shuffle Playlist Tracks">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                                        <span>Shuffle All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-secondary-pill" id="btn-download-playlist-all" title="Download entire playlist offline">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                        <span class="btn-text">Download All</span>
+                                    </button>
+                                    <button class="ios-pill-btn btn-danger" id="btn-delete-current-pl" title="Delete playlist">
+                                        <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        <span>Delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tracks-container" id="playlist-tracks-container" style="margin-top: 24px;">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
                 </section>
 
@@ -197,7 +393,7 @@
                         <span class="ios-sub-count" id="offline-stats-summary">0 songs • 0 MB</span>
                     </div>
                     <p class="ios-section-desc">
-                        Saved in your phone's browser cache. Works offline in airplane mode.
+                        Saved in your browser cache. Works offline in airplane mode.
                     </p>
                     <div class="tracks-container" id="offline-tracks-container" style="margin-top: 16px;">
                         <!-- Populated dynamically -->
@@ -232,42 +428,117 @@
                 <section id="tab-downloads" class="tab-panel">
                     <div class="ios-page-header">
                         <h1 class="ios-large-title">Search & Download</h1>
-                        <span class="ios-sub-count">Local Jackett (9117) & qBittorrent (8081)</span>
-                    </div>
-
-                    <!-- Search Controls & Filters -->
-                    <div class="search-filter-card">
-                        <div class="download-search-box">
-                            <input type="text" id="torrent-search-input" placeholder="Search song, album, or artist to download...">
-                            <button id="btn-search-torrents" class="btn btn-primary">Search Indexers</button>
+                    <!-- Storage Quota & Apple Music Offline Reconstructor -->
+                    <div class="reconstructor-dashboard-card" style="margin-bottom: 24px;">
+                        <div class="reconstructor-header">
+                            <div class="reconstructor-title-group">
+                                <h2 class="ios-section-title" style="margin: 0; font-size: 18px;">Apple Music Offline Reconstructor</h2>
+                                <span class="reconstructor-badge">G:\Music (35 GB Hard Cap)</span>
+                            </div>
+                            <button id="btn-scan-apple-music" class="ios-pill-btn btn-secondary-pill">
+                                <span id="btn-scan-apple-icon"></span>
+                                <span id="btn-scan-apple-text">🛡️ Safe Clone & Scan</span>
+                            </button>
                         </div>
 
-                        <div class="search-options-row">
+                        <!-- Storage Quota Bar -->
+                        <div class="storage-quota-container">
+                            <div class="storage-quota-header">
+                                <span>Storage Cap: <strong id="storage-used-text">0.0 GB</strong> of <strong id="storage-max-text">35.0 GB</strong></span>
+                                <span id="storage-remaining-text">35.0 GB remaining</span>
+                            </div>
+                            <div class="storage-quota-bar-bg">
+                                <div id="storage-quota-bar-fill" class="storage-quota-bar-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Safe Snapshot Status Banner -->
+                        <div id="snapshot-status-banner" class="snapshot-status-banner">
+                            <span>🔒 Snapshot location: <code>G:\Music\AppleMusic_Backup</code> (Original Apple Music files protected)</span>
+                        </div>
+
+                        <!-- Playlist Selector & Match Engine -->
+                        <div class="reconstructor-controls-row">
+                            <div class="reconstructor-select-wrap">
+                                <label for="select-apple-playlist">Select Playlist to Reconstruct:</label>
+                                <select id="select-apple-playlist" class="filter-select-styled" style="width: 100%;">
+                                    <option value="">Scan Apple Music first or select a playlist...</option>
+                                </select>
+                            </div>
+                            <button id="btn-match-playlist" class="ios-pill-btn btn-primary-pill" style="align-self: flex-end;" disabled>
+                                <span>🔍 Match Releases (128k/192k)</span>
+                            </button>
+                        </div>
+
+                        <!-- Match Results & Quality Confirmation Table -->
+                        <div id="reconstructor-results-container" style="display: none; margin-top: 18px;">
+                            <div class="reconstructor-results-header">
+                                <h3 style="font-size: 15px; margin: 0; color: var(--vwsq-console-text-bright);">Matched Releases (<span id="match-count-text">0/0</span>)</h3>
+                                <div class="reconstructor-actions">
+                                    <button id="btn-queue-reconstruction" class="ios-pill-btn btn-primary-pill">
+                                        <span>📥 Queue to qBittorrent</span>
+                                    </button>
+                                    <button id="btn-post-process-metadata" class="ios-pill-btn btn-secondary-pill" title="Tag with MusicBrainz">
+                                        <span>✨ MusicBrainz Tagging</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="reconstructor-table-wrap">
+                                <table class="reconstructor-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Track</th>
+                                            <th>Matched Release</th>
+                                            <th>Quality</th>
+                                            <th>Size</th>
+                                            <th>Lossless Confirmation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reconstructor-matches-tbody">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Enhanced Search Bar & Filter Controls -->
+                    <div class="search-filter-card enhanced-search-card">
+                        <div class="download-search-box-large">
+                            <span class="search-icon-svg-large">
+                                <svg class="v-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </span>
+                            <input type="text" id="torrent-search-input" class="torrent-input-large" placeholder="Search artist, album, discography or song to download...">
+                            <button id="btn-search-torrents" class="btn btn-primary btn-search-large">
+                                <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span>Search Releases</span>
+                            </button>
+                        </div>
+
+                        <div class="search-options-row search-options-aligned">
                             <div class="filter-group">
-                                <label>Indexer:</label>
-                                <select id="select-indexer">
-                                    <option value="all">All Configured Indexers</option>
-                                    <option value="thepiratebay">The Pirate Bay (Fast)</option>
-                                    <option value="limetorrents">LimeTorrents</option>
-                                    <option value="kickasstorrents-ws">KickassTorrents</option>
-                                    <option value="therarbg">The RARBG</option>
+                                <label>Provider:</label>
+                                <select id="select-indexer" class="filter-select-styled">
+                                    <option value="all">All Providers (Jackett + Lidarr)</option>
+                                    <option value="lidarr">Lidarr (OVH Media Stack)</option>
+                                    <option value="thepiratebay">The Pirate Bay</option>
                                     <option value="1337x">1337x</option>
                                     <option value="rutracker-ru">RuTracker</option>
                                 </select>
                             </div>
 
                             <div class="filter-group">
-                                <label>Category:</label>
-                                <select id="select-category">
-                                    <option value="3000">Audio / Music (Cat 3000)</option>
+                                <label>Audio Format:</label>
+                                <select id="select-category" class="filter-select-styled">
+                                    <option value="3000">All Music (FLAC / MP3)</option>
                                     <option value="3020">Lossless / FLAC (Cat 3020)</option>
                                     <option value="3010">MP3 / 320kbps (Cat 3010)</option>
-                                    <option value="all">All Categories (No filter)</option>
+                                    <option value="all">Unfiltered (All Categories)</option>
                                 </select>
                             </div>
 
                             <div class="filter-checkbox-group">
-                                <label>
+                                <label class="checkbox-styled">
                                     <input type="checkbox" id="check-filter-music" checked>
                                     <span>Smart Audio Filter</span>
                                 </label>
@@ -275,19 +546,22 @@
                         </div>
                     </div>
 
-                    <div class="torrents-results-container" style="margin-top: 20px;">
+                    <div class="torrents-results-container" style="margin-top: 24px;">
                         <div class="ios-section-header">
                             <h2 class="ios-section-title">Search Results (<span id="results-count">0</span>)</h2>
                         </div>
                         <div class="tracks-container" id="torrents-results-list">
-                            <div class="empty-state">Enter a query above to search Jackett indexers</div>
+                            <div class="empty-state">Enter a query above to search indexers & Lidarr</div>
                         </div>
                     </div>
 
-                    <div class="active-downloads-container" style="margin-top: 32px;">
+                    <div class="active-downloads-container" style="margin-top: 36px;">
                         <div class="ios-section-header">
-                            <h2 class="ios-section-title">qBittorrent Active Queue (<span id="queue-count">0</span>)</h2>
-                            <button id="btn-refresh-queue" class="ios-link-btn">Refresh</button>
+                            <h2 class="ios-section-title">Active Downloads Queue (<span id="queue-count">0</span>)</h2>
+                            <button id="btn-refresh-queue" class="ios-link-btn">
+                                <svg class="v-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                                <span>Refresh</span>
+                            </button>
                         </div>
                         <div class="tracks-container" id="downloads-queue-list">
                             <!-- Populated dynamically -->
@@ -300,20 +574,34 @@
             <!-- APPLE MUSIC FLOATING MINI PLAYER                         -->
             <!-- ======================================================== -->
             <div class="floating-mini-player" id="mini-player">
-                <div class="mini-player-progress" id="mini-progress-bar"></div>
+                <div class="mini-player-progress-container" id="mini-progress-container" title="Click or drag to seek">
+                    <div class="mini-player-progress" id="mini-progress-bar"></div>
+                    <input type="range" id="mini-seek-slider" class="mini-seek-slider" min="0" max="100" value="0" step="0.1">
+                </div>
                 <div class="mini-player-body">
                     <div class="mini-track-info" id="mini-track-info">
-                        <div class="mini-art" id="mini-art">🎵</div>
+                        <div class="mini-art" id="mini-art">
+                            <svg class="v-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                        </div>
                         <div class="mini-meta">
                             <div class="mini-title" id="mini-title">Not Playing</div>
                             <div class="mini-artist" id="mini-artist">Select a song</div>
                         </div>
                     </div>
 
+                    <!-- Time display for desktop / tablet / non-phone UI -->
+                    <div class="mini-time-display" id="mini-time-display">
+                        <span id="mini-current-time">0:00</span>
+                        <span class="time-sep">/</span>
+                        <span id="mini-duration-time">0:00</span>
+                    </div>
+
                     <div class="mini-controls">
-                        <button id="btn-mini-fav" class="ios-mini-btn" title="Favorite">🤍</button>
-                        <button id="btn-mini-play" class="ios-mini-play-btn">▶</button>
-                        <button id="btn-mini-next" class="ios-mini-btn">⏭</button>
+                        <button id="btn-mini-shuffle" class="ios-mini-btn" title="Shuffle Mode"></button>
+                        <button id="btn-mini-prev" class="ios-mini-btn" title="Previous Track"></button>
+                        <button id="btn-mini-fav" class="ios-mini-btn" title="Favorite"></button>
+                        <button id="btn-mini-play" class="ios-mini-play-btn" title="Play / Pause"></button>
+                        <button id="btn-mini-next" class="ios-mini-btn" title="Next Track"></button>
                     </div>
                 </div>
             </div>
@@ -323,27 +611,27 @@
             <!-- ======================================================== -->
             <nav class="apple-bottom-bar">
                 <button class="apple-tab active" data-tab="home">
-                    <span class="tab-icon">🏠</span>
+                    <span class="tab-icon-wrap" id="mob-icon-home"></span>
                     <span class="tab-label">Listen Now</span>
                 </button>
                 <button class="apple-tab" data-tab="tracks">
-                    <span class="tab-icon">🎼</span>
+                    <span class="tab-icon-wrap" id="mob-icon-tracks"></span>
                     <span class="tab-label">Songs</span>
                 </button>
+                <button class="apple-tab" data-tab="artists">
+                    <span class="tab-icon-wrap" id="mob-icon-artists"></span>
+                    <span class="tab-label">Artists</span>
+                </button>
                 <button class="apple-tab" data-tab="albums">
-                    <span class="tab-icon">💿</span>
+                    <span class="tab-icon-wrap" id="mob-icon-albums"></span>
                     <span class="tab-label">Albums</span>
                 </button>
                 <button class="apple-tab" data-tab="playlists">
-                    <span class="tab-icon">📂</span>
+                    <span class="tab-icon-wrap" id="mob-icon-playlists"></span>
                     <span class="tab-label">Playlists</span>
                 </button>
-                <button class="apple-tab" data-tab="offline">
-                    <span class="tab-icon">💾</span>
-                    <span class="tab-label">Downloaded</span>
-                </button>
                 <button class="apple-tab" data-tab="downloads">
-                    <span class="tab-icon">🔍</span>
+                    <span class="tab-icon-wrap" id="mob-icon-downloads"></span>
                     <span class="tab-label">Search</span>
                 </button>
             </nav>
@@ -352,18 +640,24 @@
             <!-- APPLE MUSIC FULLSCREEN NOW PLAYING SHEET                 -->
             <!-- ======================================================== -->
             <div class="now-playing-sheet" id="now-playing-sheet">
-                <div class="sheet-grabber-bar">
+                <div class="sheet-grabber-bar" id="sheet-grabber-bar">
                     <div class="grabber-pill"></div>
                 </div>
 
                 <div class="sheet-header">
-                    <button id="btn-close-sheet" class="sheet-icon-btn">⌄</button>
+                    <button id="btn-close-sheet" class="sheet-icon-btn">
+                        <svg class="v-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
                     <span class="sheet-title">Now Playing</span>
-                    <button id="btn-sheet-download" class="sheet-icon-btn" title="Save to iOS Files">⬇️</button>
+                    <button id="btn-sheet-download" class="sheet-icon-btn" title="Save to iOS Files">
+                        <svg class="v-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </button>
                 </div>
 
                 <div class="sheet-art-container">
-                    <div class="sheet-art" id="sheet-art">🎵</div>
+                    <div class="sheet-art" id="sheet-art">
+                        <svg class="v-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                    </div>
                 </div>
 
                 <div class="sheet-info-row">
@@ -371,7 +665,7 @@
                         <div class="sheet-song-title" id="sheet-title">Song Title</div>
                         <div class="sheet-artist-name" id="sheet-artist">Artist • Album</div>
                     </div>
-                    <button id="btn-sheet-fav" class="sheet-heart-btn" title="Favorite">🤍</button>
+                    <button id="btn-sheet-fav" class="sheet-heart-btn" title="Favorite"></button>
                 </div>
 
                 <div class="sheet-scrubber">
@@ -383,14 +677,18 @@
                 </div>
 
                 <div class="sheet-transport">
-                    <button id="btn-sheet-prev" class="sheet-transport-btn">⏮</button>
-                    <button id="btn-sheet-play" class="sheet-main-play-btn">▶</button>
-                    <button id="btn-sheet-next" class="sheet-transport-btn">⏭</button>
+                    <button id="btn-sheet-shuffle" class="sheet-transport-btn" title="Shuffle Mode"></button>
+                    <button id="btn-sheet-prev" class="sheet-transport-btn"></button>
+                    <button id="btn-sheet-play" class="sheet-main-play-btn"></button>
+                    <button id="btn-sheet-next" class="sheet-transport-btn"></button>
                 </div>
 
                 <div class="sheet-bottom-actions">
                     <button id="btn-sheet-offline" class="sheet-action-pill" title="Cache Offline">
-                        <span>💾 Save Offline</span>
+                        <span class="sheet-action-icon">
+                            <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        </span>
+                        <span class="sheet-action-text">Save Offline</span>
                     </button>
                 </div>
             </div>
@@ -400,7 +698,9 @@
                 <div class="modal-card">
                     <div class="modal-header">
                         <h3>Device Profile & View Sync</h3>
-                        <button class="modal-close-btn" id="btn-close-profile-modal">✕</button>
+                        <button class="modal-close-btn" id="btn-close-profile-modal">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
@@ -424,7 +724,8 @@
                             </select>
                         </div>
                         <button id="btn-confirm-clone-view" class="btn btn-primary" style="width: 100%;">
-                            <span>⇄</span> Duplicate Selected Device's View
+                            <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            <span>Duplicate Selected Device's View</span>
                         </button>
                     </div>
                     <div class="modal-footer">
@@ -437,7 +738,9 @@
                 <div class="modal-card">
                     <div class="modal-header">
                         <h3>Create Shared Playlist</h3>
-                        <button class="modal-close-btn" id="btn-close-playlist-modal">✕</button>
+                        <button class="modal-close-btn" id="btn-close-playlist-modal">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
                     <div class="modal-body">
                         <div class="form-group">
@@ -455,7 +758,9 @@
                 <div class="modal-card">
                     <div class="modal-header">
                         <h3>Add to Playlist</h3>
-                        <button class="modal-close-btn" id="btn-close-add-pl-modal">✕</button>
+                        <button class="modal-close-btn" id="btn-close-add-pl-modal">
+                            <svg class="v-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
                     </div>
                     <div class="modal-body">
                         <div class="playlists-picker-list" id="playlists-picker-list">
