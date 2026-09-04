@@ -1,6 +1,6 @@
 {
   "name": "vault-music",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "VaultWares Music Streaming, Local Metadata Server, and Download Manager",
   "main": "src/server.js",
   "scripts": {

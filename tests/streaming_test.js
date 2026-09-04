@@ -24,6 +24,7 @@ async function testStreaming() {
 
         // Scan mock library
         libraryService.musicDir = path.join(__dirname, 'temp_music');
+        libraryService.musicDirs = [path.join(__dirname, 'temp_music')];
         libraryService.scanLibrary();
 
         const tracks = libraryService.listTracks().tracks;

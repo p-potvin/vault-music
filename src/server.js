@@ -26,8 +26,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const { AppleMusicLocalService } = require('./services/apple-music-local-service');
+const { LocalDownloadReconstructor } = require('./services/local-download-reconstructor');
+const { PostDownloadProcessor } = require('./services/post-download-processor');
+
 // Services Initialization
-const libraryService = new LibraryService(config.MUSIC_DIR);
+const libraryService = new LibraryService(config.MUSIC_DIR, config.MUSIC_DIRS);
 const profileService = new ProfileService();
 const metadataService = new MetadataService({
     localDbPath: config.LOCAL_DB_PATH,
@@ -42,6 +46,22 @@ const downloadService = new DownloadService({
     qbittorrentPass: config.QBITTORRENT_PASS,
     downloadsDir: config.DOWNLOADS_DIR
 });
+const appleMusicLocalService = new AppleMusicLocalService({
+    sourceDir: config.APPLE_MUSIC_SOURCE_DIR,
+    backupDir: config.APPLE_MUSIC_BACKUP_DIR
+});
+const localReconstructor = new LocalDownloadReconstructor({
+    jackettUrl: config.JACKETT_URL,
+    jackettApiKey: config.JACKETT_API_KEY,
+    qbitUrl: config.QBITTORRENT_URL,
+    qbitUser: config.QBITTORRENT_USER,
+    qbitPass: config.QBITTORRENT_PASS,
+    maxLibrarySizeGb: config.MAX_LIBRARY_SIZE_GB
+});
+const postDownloadProcessor = new PostDownloadProcessor({
+    downloadsDir: config.DOWNLOADS_DIR,
+    libraryService: libraryService
+});
 
 // Setup Swagger UI & OpenAPI Specification at /docs & /openapi.json
 setupSwagger(app);
@@ -52,7 +72,11 @@ apiRouter.use('/', createLibraryRouter(libraryService));
 apiRouter.use('/', createStreamRouter(libraryService));
 apiRouter.use('/profiles', createProfilesRouter(profileService, libraryService));
 apiRouter.use('/metadata', createMetadataRouter(metadataService, libraryService));
-apiRouter.use('/downloads', createDownloadsRouter(downloadService));
+apiRouter.use('/downloads', createDownloadsRouter(downloadService, {
+    appleMusicLocalService,
+    localReconstructor,
+    postDownloadProcessor
+}));
 
 app.use('/api/v1', apiRouter);
 

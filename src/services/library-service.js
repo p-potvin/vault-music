@@ -5,8 +5,11 @@ const config = require('../config');
 const { extractAudioFileMetadata } = require('../musicbrainz/tag-reader');
 
 class LibraryService {
-    constructor(musicDir = config.MUSIC_DIR) {
-        this.musicDir = path.resolve(musicDir);
+    constructor(musicDir = config.MUSIC_DIR, additionalDirs = config.MUSIC_DIRS) {
+        this.musicDirs = Array.isArray(additionalDirs) && additionalDirs.length > 0 
+            ? additionalDirs.map(d => path.resolve(d)) 
+            : [path.resolve(musicDir)];
+        this.musicDir = this.musicDirs[0];
         this.tracks = []; // Array of track objects
         this.tracksById = new Map(); // id -> track
         this.artists = new Map(); // artistName -> { name, trackCount, albumCount, albums: Set }
@@ -39,7 +42,7 @@ class LibraryService {
             for (const entry of entries) {
                 const fullPath = path.join(currentDir, entry.name);
                 if (entry.isDirectory()) {
-                    if (entry.name !== '.thumbs' && entry.name !== 'node_modules' && !entry.name.startsWith('.')) {
+                    if (entry.name !== '.thumbs' && entry.name !== 'node_modules' && !entry.name.startsWith('.') && entry.name.toLowerCase() !== 'applemusic_backup') {
                         walk(fullPath);
                     }
                 } else if (entry.isFile()) {
@@ -48,11 +51,21 @@ class LibraryService {
                         const trackMeta = extractAudioFileMetadata(fullPath);
                         const trackId = this.generateId(fullPath);
                         const albumDir = path.dirname(fullPath);
-                        const albumId = this.generateId(albumDir);
 
-                        // Look for local album cover
+                        const artistName = trackMeta.effectiveArtist || 'Unknown Artist';
+                        const albumArtist = trackMeta.effectiveAlbumArtist || artistName;
+                        const albumTitle = trackMeta.effectiveAlbum || 'Unknown Album';
+                        const trackTitle = trackMeta.effectiveTitle || path.basename(fullPath, ext);
+
+                        // Use combined album title + album artist for unique album ID if metadata exists, else album directory
+                        const albumKey = (albumTitle && albumTitle !== 'Unknown Album')
+                            ? (albumTitle.toLowerCase() + '::' + albumArtist.toLowerCase())
+                            : albumDir;
+                        const albumId = this.generateId(albumKey);
+
+                        // Look for local album cover in album folder
                         let coverPath = null;
-                        const potentialCovers = ['cover.jpg', 'cover.png', 'folder.jpg', 'folder.png', 'front.jpg'];
+                        const potentialCovers = ['cover.jpg', 'cover.png', 'folder.jpg', 'folder.png', 'front.jpg', 'cover.jpeg', 'front.png'];
                         for (const name of potentialCovers) {
                             const p = path.join(albumDir, name);
                             if (fs.existsSync(p)) {
@@ -60,10 +73,6 @@ class LibraryService {
                                 break;
                             }
                         }
-
-                        const artistName = trackMeta.effectiveArtist || 'Unknown Artist';
-                        const albumTitle = trackMeta.effectiveAlbum || 'Unknown Album';
-                        const trackTitle = trackMeta.effectiveTitle || path.basename(fullPath, ext);
 
                         let stats;
                         try { stats = fs.statSync(fullPath); } catch (_) { stats = { size: 0, mtime: new Date() }; }
@@ -94,9 +103,10 @@ class LibraryService {
                             newAlbums.set(albumId, {
                                 id: albumId,
                                 title: albumTitle,
-                                artist: artistName,
+                                artist: albumArtist,
                                 albumDir: albumDir,
                                 year: trackObj.year,
+                                genre: trackObj.genre,
                                 coverPath: coverPath,
                                 coverUrl: coverPath ? `/api/v1/art/${albumId}` : null,
                                 trackCount: 0,
@@ -110,26 +120,45 @@ class LibraryService {
                             albumObj.coverPath = coverPath;
                             albumObj.coverUrl = `/api/v1/art/${albumId}`;
                         }
-
-                        // Aggregate Artist
-                        if (!newArtists.has(artistName)) {
-                            newArtists.set(artistName, {
-                                name: artistName,
-                                trackCount: 0,
-                                albumCount: 0,
-                                albums: new Set()
-                            });
+                        if (!albumObj.year && trackObj.year) {
+                            albumObj.year = trackObj.year;
                         }
-                        const artistObj = newArtists.get(artistName);
-                        artistObj.trackCount++;
-                        artistObj.albums.add(albumId);
+
+                        // Aggregate Artists (both track artist and primary album artist)
+                        const artistNamesToTrack = new Set([artistName, albumArtist]);
+                        for (const aName of artistNamesToTrack) {
+                            if (!aName) continue;
+                            if (!newArtists.has(aName)) {
+                                newArtists.set(aName, {
+                                    name: aName,
+                                    trackCount: 0,
+                                    albumCount: 0,
+                                    albums: new Set()
+                                });
+                            }
+                            const artistObj = newArtists.get(aName);
+                            artistObj.trackCount++;
+                            artistObj.albums.add(albumId);
+                        }
                     }
                 }
             }
         };
 
-        if (fs.existsSync(this.musicDir)) {
-            walk(this.musicDir);
+        for (const dir of this.musicDirs) {
+            if (fs.existsSync(dir)) {
+                walk(dir);
+            }
+        }
+
+        // Sort tracks inside each album by track number or title
+        for (const [_, alb] of newAlbums.entries()) {
+            alb.tracks.sort((a, b) => {
+                const numA = parseInt(a.trackNumber, 10);
+                const numB = parseInt(b.trackNumber, 10);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return (a.title || '').localeCompare(b.title || '');
+            });
         }
 
         // Finalize artist album counts
@@ -169,22 +198,24 @@ class LibraryService {
         let results = this.tracks;
 
         if (query) {
-            const q = query.toLowerCase();
+            const q = query.toLowerCase().trim();
             results = results.filter(t =>
-                t.title.toLowerCase().includes(q) ||
-                t.artist.toLowerCase().includes(q) ||
-                t.album.toLowerCase().includes(q)
+                (t.title && t.title.toLowerCase().includes(q)) ||
+                (t.artist && t.artist.toLowerCase().includes(q)) ||
+                (t.album && t.album.toLowerCase().includes(q)) ||
+                (t.fileName && t.fileName.toLowerCase().includes(q)) ||
+                (t.genre && t.genre.toLowerCase().includes(q))
             );
         }
 
         if (artist) {
-            const a = artist.toLowerCase();
-            results = results.filter(t => t.artist.toLowerCase() === a);
+            const a = artist.toLowerCase().trim();
+            results = results.filter(t => t.artist && t.artist.toLowerCase().includes(a));
         }
 
         if (album) {
-            const alb = album.toLowerCase();
-            results = results.filter(t => t.album.toLowerCase() === alb);
+            const alb = album.toLowerCase().trim();
+            results = results.filter(t => t.album && t.album.toLowerCase().includes(alb));
         }
 
         // Sorting
@@ -207,14 +238,14 @@ class LibraryService {
         };
     }
 
-    listAlbums({ query = '', page = 1, limit = 50 } = {}) {
+    listAlbums({ query = '', page = 1, limit = 100 } = {}) {
         let results = Array.from(this.albums.values());
 
         if (query) {
-            const q = query.toLowerCase();
+            const q = query.toLowerCase().trim();
             results = results.filter(a =>
-                a.title.toLowerCase().includes(q) ||
-                a.artist.toLowerCase().includes(q)
+                (a.title && a.title.toLowerCase().includes(q)) ||
+                (a.artist && a.artist.toLowerCase().includes(q))
             );
         }
 
@@ -232,12 +263,12 @@ class LibraryService {
         };
     }
 
-    listArtists({ query = '', page = 1, limit = 50 } = {}) {
+    listArtists({ query = '', page = 1, limit = 100 } = {}) {
         let results = Array.from(this.artists.values());
 
         if (query) {
-            const q = query.toLowerCase();
-            results = results.filter(a => a.name.toLowerCase().includes(q));
+            const q = query.toLowerCase().trim();
+            results = results.filter(a => a.name && a.name.toLowerCase().includes(q));
         }
 
         results.sort((a, b) => a.name.localeCompare(b.name));

@@ -137,6 +137,24 @@ class ProfileService {
         return { isFavorite, favoriteTrackIds: profile.homeView.favoriteTrackIds };
     }
 
+    togglePinPlaylist(deviceId, playlistId) {
+        const profile = this.getOrCreateProfile(deviceId);
+        if (!profile.homeView) profile.homeView = { pinnedPlaylistIds: [], favoriteTrackIds: [] };
+        const pinned = new Set(profile.homeView.pinnedPlaylistIds || []);
+        let isPinned = false;
+
+        if (pinned.has(playlistId)) {
+            pinned.delete(playlistId);
+        } else {
+            pinned.add(playlistId);
+            isPinned = true;
+        }
+
+        profile.homeView.pinnedPlaylistIds = Array.from(pinned);
+        this._saveData();
+        return { isPinned, pinnedPlaylistIds: profile.homeView.pinnedPlaylistIds };
+    }
+
     // =========================================================================
     // Shared Playlists Management
     // =========================================================================

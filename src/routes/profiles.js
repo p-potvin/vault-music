@@ -76,6 +76,18 @@ function createProfilesRouter(profileService, libraryService) {
         res.json(result);
     });
 
+    /**
+     * Toggle pinned playlist for this device.
+     */
+    router.post('/pin', (req, res) => {
+        const { deviceId } = getDeviceContext(req);
+        const { playlistId } = req.body;
+        if (!playlistId) return res.status(400).json({ error: 'playlistId is required' });
+
+        const result = profileService.togglePinPlaylist(deviceId, playlistId);
+        res.json(result);
+    });
+
     // =========================================================================
     // Shared Playlists Endpoints
     // =========================================================================
@@ -154,10 +166,13 @@ function createProfilesRouter(profileService, libraryService) {
     });
 
     /**
-     * Remove track from playlist.
+     * Remove track from playlist (supports :trackId in URL or in JSON body).
      */
-    router.delete('/playlists/:id/tracks/:trackId', (req, res) => {
-        const updated = profileService.removeTrackFromPlaylist(req.params.id, req.params.trackId);
+    router.delete('/playlists/:id/tracks/:trackId?', (req, res) => {
+        const trackId = req.params.trackId || req.body?.trackId;
+        if (!trackId) return res.status(400).json({ error: 'trackId is required' });
+
+        const updated = profileService.removeTrackFromPlaylist(req.params.id, trackId);
         if (!updated) return res.status(404).json({ error: 'Playlist not found' });
         res.json(updated);
     });

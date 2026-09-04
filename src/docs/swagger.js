@@ -326,13 +326,59 @@ const openApiSpec = {
         '/api/v1/downloads/search': {
             get: {
                 tags: ['Downloads'],
-                summary: 'Search torrent indexers (Jackett / Comet) for audio releases',
+                summary: 'Search torrent indexers (Jackett / Lidarr) for audio releases',
                 parameters: [
                     { name: 'q', in: 'query', required: true, schema: { type: 'string' } },
+                    { name: 'indexer', in: 'query', schema: { type: 'string', default: 'all' } },
                     { name: 'category', in: 'query', schema: { type: 'integer', default: 3000 } }
                 ],
                 responses: {
-                    200: { description: 'Torrent search results' }
+                    200: { description: 'Torrent & Lidarr release search results' }
+                }
+            }
+        },
+        '/api/v1/downloads/lidarr/status': {
+            get: {
+                tags: ['Downloads'],
+                summary: 'Get Lidarr server status on OVH',
+                responses: {
+                    200: { description: 'Lidarr system status' }
+                }
+            }
+        },
+        '/api/v1/downloads/lidarr/search': {
+            get: {
+                tags: ['Downloads'],
+                summary: 'Search artists and albums in Lidarr',
+                parameters: [
+                    { name: 'q', in: 'query', required: true, schema: { type: 'string' } }
+                ],
+                responses: {
+                    200: { description: 'Lidarr search results' }
+                }
+            }
+        },
+        '/api/v1/downloads/lidarr/grab': {
+            post: {
+                tags: ['Downloads'],
+                summary: 'Grab release via Lidarr API to download through media stack',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                properties: {
+                                    guid: { type: 'string' },
+                                    downloadUrl: { type: 'string' },
+                                    title: { type: 'string' }
+                                }
+                            }
+                        }
+                    }
+                },
+                responses: {
+                    200: { description: 'Release grabbed status' }
                 }
             }
         },

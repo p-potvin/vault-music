@@ -106,7 +106,8 @@ async function testProfiles() {
         assert.ok(cloneRes.data.success);
         assert.deepEqual(cloneRes.data.profile.homeView.pinnedPlaylistIds, [playlistId]);
         assert.deepEqual(cloneRes.data.profile.homeView.favoriteTrackIds, ['track-99']);
-        console.log('✓ [PASS] View duplication verified: Device B now mirrors Device A custom home layout.\n');
+        // Clean up test playlist
+        profileService.deletePlaylist(playlistId);
 
         console.log('======================================================================');
         console.log(' ALL PROFILES & VIEW DUPLICATION TESTS PASSED!                        ');
