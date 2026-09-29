@@ -75,7 +75,8 @@ apiRouter.use('/metadata', createMetadataRouter(metadataService, libraryService)
 apiRouter.use('/downloads', createDownloadsRouter(downloadService, {
     appleMusicLocalService,
     localReconstructor,
-    postDownloadProcessor
+    postDownloadProcessor,
+    libraryService
 }));
 
 app.use('/api/v1', apiRouter);

@@ -2237,3 +2237,139 @@ body {
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }
 
+/* ======================================================== */
+/* MISSING-ALBUM SUGGESTIONS                                */
+/* ======================================================== */
+.suggestions-panel {
+    margin-top: 18px;
+    border-top: 1px solid var(--vwsq-console-border);
+    padding-top: 16px;
+}
+
+.suggestions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.suggestions-title {
+    font-size: 15px;
+    margin: 0;
+    color: var(--vwsq-console-text-bright);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.suggestions-summary {
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--ctp-mauve);
+    background: rgba(203, 166, 247, 0.15);
+    border: 1px solid rgba(203, 166, 247, 0.3);
+    padding: 2px 8px;
+    border-radius: var(--vwsq-radius-sm);
+}
+
+.suggestions-meta {
+    font-size: 12px;
+    color: var(--vwsq-console-text-dim);
+    margin-bottom: 12px;
+}
+
+.suggestions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.suggestion-card {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 12px 14px;
+}
+
+.suggestion-card.selected {
+    border-color: var(--ctp-mauve);
+}
+
+.suggestion-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.suggestion-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--vwsq-console-text-bright);
+    cursor: pointer;
+}
+
+.suggestion-count {
+    font-size: 11px;
+    font-family: var(--vwsq-font-mono);
+    color: var(--vwsq-console-text-dim);
+}
+
+.suggestion-tracks {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.suggestion-track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--vwsq-console-text-dim);
+}
+
+.suggestion-track.owned {
+    opacity: 0.5;
+}
+
+.suggestion-release {
+    font-size: 12px;
+    color: var(--ctp-lavender);
+    margin-top: 8px;
+}
+
+.suggestion-release.missing-release {
+    color: var(--ctp-peach);
+}
+
+.suggestion-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: var(--vwsq-radius-sm);
+    font-family: var(--vwsq-font-mono);
+    margin-right: 6px;
+}
+
+.suggestion-badge.low {
+    background: rgba(166, 227, 161, 0.15);
+    color: var(--ctp-green);
+}
+
+.suggestion-badge.lossless {
+    background: rgba(249, 226, 175, 0.15);
+    color: var(--ctp-yellow);
+}
+
+.suggestion-badge.standard {
+    background: rgba(137, 180, 250, 0.15);
+    color: var(--ctp-blue);
+}

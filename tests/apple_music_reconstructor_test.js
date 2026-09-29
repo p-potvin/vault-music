@@ -118,6 +118,59 @@ async function runTests() {
 
     await new Promise(r => server.close(r));
 
+    // Test 8: Jackett tag resolution
+    console.log('[Test 8] Testing Jackett music tag resolution...');
+    const tagged = reconstructor.resolveTaggedIndexers('music');
+    const bogus = reconstructor.resolveTaggedIndexers('definitely-not-a-tag');
+    assert.ok(Array.isArray(tagged), 'Tag resolution must return an array');
+    assert.deepStrictEqual(bogus, [], 'An unknown tag must resolve to no indexers');
+    console.log(`✓ [PASS] "music" tag resolves to ${tagged.length} indexer(s): ${tagged.join(', ')}\n`);
+
+    // Test 9: Missing-album suggestions
+    console.log('[Test 9] Testing missing-album suggestions...');
+    const { LibraryService } = require('../src/services/library-service');
+    const libraryService = new LibraryService(config.MUSIC_DIR, config.MUSIC_DIRS);
+    libraryService.scanLibrary();
+    const suggestionSource = playlistsRes.playlists.find(p => p.trackCount > 0);
+    const suggestions = reconstructor.buildSuggestions(suggestionSource, libraryService.tracks, { maxAlbums: 5 });
+
+    assert.strictEqual(suggestions.playlistName, suggestionSource.name);
+    assert.ok(suggestions.totalAlbums > 0, 'A real playlist should have albums with gaps');
+    assert.ok(suggestions.albums.length <= 5, 'maxAlbums must be respected');
+    const firstAlbum = suggestions.albums[0];
+    assert.ok(firstAlbum.missingCount >= 1, 'Suggested albums must have missing tracks');
+    assert.strictEqual(
+        firstAlbum.tracks.filter(t => t.owned).length,
+        firstAlbum.ownedCount,
+        'Owned count must match the owned track flags'
+    );
+    assert.ok(
+        firstAlbum.tracks.filter(t => !t.owned).length === firstAlbum.missingCount,
+        'Missing count must match the unowned track flags'
+    );
+    console.log(`✓ [PASS] ${suggestions.totalAlbums} album(s) with gaps; top: "${firstAlbum.artist} - ${firstAlbum.album}" (${firstAlbum.missingCount}/${firstAlbum.totalTracks} missing)\n`);
+
+    // Test 10: Album match filtering and seeder thresholds
+    console.log('[Test 10] Testing album match filtering and seeder thresholds...');
+    assert.strictEqual(
+        reconstructor._looksLikeAlbum('NOFX - Punk In Drublic (1994) [FLAC]', 'Punk In Drublic'),
+        true,
+        'A matching album title must be accepted'
+    );
+    assert.strictEqual(
+        reconstructor._looksLikeAlbum('Nofx - A to H (2025 Punk-New wave) [Flac 24-48]', 'Punk In Drublic'),
+        false,
+        'A partial token overlap must not be accepted as the album'
+    );
+    const picked = reconstructor._pickByThreshold([{ seeders: 3, score: 10 }, { seeders: 7, score: 5 }], [20, 15, 10, 5]);
+    assert.strictEqual(picked.seeders, 7, 'Should relax to the highest threshold a candidate clears');
+    assert.strictEqual(
+        reconstructor._pickByThreshold([{ seeders: 1, score: 9 }], [20, 15, 10, 5]),
+        null,
+        'Releases below the seeder floor must be rejected'
+    );
+    console.log('✓ [PASS] Album filtering and seeder relaxation verified.\n');
+
     console.log('======================================================================');
     console.log(' ALL APPLE MUSIC RECONSTRUCTOR & JACKETT TESTS PASSED!                ');
     console.log('======================================================================');

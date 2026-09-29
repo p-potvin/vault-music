@@ -468,6 +468,26 @@
                             <button id="btn-match-playlist" class="ios-pill-btn btn-primary-pill" style="align-self: flex-end;" disabled>
                                 <span>🔍 Match Releases (128k/192k)</span>
                             </button>
+                            <button id="btn-find-missing" class="ios-pill-btn btn-secondary-pill" style="align-self: flex-end;" disabled>
+                                <span>🧩 Find Missing Albums</span>
+                            </button>
+                        </div>
+
+                        <!-- Missing-track Suggestions -->
+                        <div class="suggestions-panel" id="suggestions-panel" style="display: none;">
+                            <div class="suggestions-header">
+                                <h3 class="suggestions-title">Suggested Downloads <span id="suggestions-summary" class="suggestions-summary">0 albums</span></h3>
+                                <div class="reconstructor-actions">
+                                    <button id="btn-find-releases" class="ios-pill-btn btn-primary-pill">
+                                        <span>🔎 Find Releases (10)</span>
+                                    </button>
+                                    <button id="btn-queue-suggestions" class="ios-pill-btn btn-primary-pill" disabled>
+                                        <span>📥 Queue Selected</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="suggestions-meta" id="suggestions-meta"></div>
+                            <div class="suggestions-list" id="suggestions-list"></div>
                         </div>
 
                         <!-- Match Results & Quality Confirmation Table -->

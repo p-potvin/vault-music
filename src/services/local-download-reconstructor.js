@@ -11,6 +11,8 @@ class LocalDownloadReconstructor {
         this.qbitUser = options.qbitUser || config.QBITTORRENT_USER;
         this.qbitPass = options.qbitPass || config.QBITTORRENT_PASS;
         this.maxLibrarySizeGb = options.maxLibrarySizeGb || config.MAX_LIBRARY_SIZE_GB || 35.0;
+        this.jackettConfigDir = options.jackettConfigDir || 'C:\\ProgramData\\Jackett\\Indexers';
+        this._tagCache = null;
         this.qbitSid = null;
     }
 
@@ -63,30 +65,58 @@ class LocalDownloadReconstructor {
     /**
      * Search Jackett for releases matching a song / album query.
      */
-    async searchJackett(query) {
-        if (!query) return [];
+    /**
+     * Resolve the indexers carrying a Jackett tag by reading the Jackett
+     * indexer configs. Jackett's HTTP API does not expose tags.
+     */
+    resolveTaggedIndexers(tag) {
+        if (!tag) return [];
+        if (this._tagCache && this._tagCache.tag === tag && Date.now() - this._tagCache.at < 60000) {
+            return this._tagCache.ids;
+        }
+
+        const wanted = tag.toLowerCase();
+        const ids = [];
+        try {
+            for (const file of fs.readdirSync(this.jackettConfigDir)) {
+                if (!file.toLowerCase().endsWith('.json')) continue;
+                try {
+                    const entries = JSON.parse(fs.readFileSync(path.join(this.jackettConfigDir, file), 'utf8'));
+                    if (!Array.isArray(entries)) continue;
+                    const entry = entries.find(item => item && item.id === 'tags');
+                    const value = entry && typeof entry.value === 'string' ? entry.value : '';
+                    const tags = value.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+                    if (tags.includes(wanted)) ids.push(file.replace(/\.json$/i, ''));
+                } catch (_) {}
+            }
+        } catch (_) {}
+
+        this._tagCache = { tag, at: Date.now(), ids };
+        return ids;
+    }
+
+    _searchIndexer(indexerId, query, { category = 3000, timeout = 25000 } = {}) {
         return new Promise((resolve) => {
             try {
                 const encodedQuery = encodeURIComponent(query);
-                const url = new URL(`${this.jackettUrl}/api/v2.0/indexers/all/results?apikey=${this.jackettApiKey}&Query=${encodedQuery}&Category=3000`);
+                let endpoint = `${this.jackettUrl}/api/v2.0/indexers/${encodeURIComponent(indexerId)}/results?apikey=${this.jackettApiKey}&Query=${encodedQuery}`;
+                if (category) endpoint += `&Category=${encodeURIComponent(category)}`;
+                const url = new URL(endpoint);
 
-                const opts = {
+                const req = http.request({
                     hostname: url.hostname,
                     port: url.port || 9117,
                     path: url.pathname + url.search,
                     method: 'GET',
                     headers: { 'Accept': 'application/json' },
-                    timeout: 10000
-                };
-
-                const req = http.request(opts, (res) => {
+                    timeout
+                }, (res) => {
                     let data = '';
                     res.on('data', chunk => { data += chunk; });
                     res.on('end', () => {
                         try {
                             const parsed = JSON.parse(data);
-                            const results = Array.isArray(parsed.Results) ? parsed.Results : [];
-                            resolve(this._processAndRankReleases(results));
+                            resolve(this._processAndRankReleases(Array.isArray(parsed.Results) ? parsed.Results : []));
                         } catch (_) {
                             resolve([]);
                         }
@@ -102,6 +132,29 @@ class LocalDownloadReconstructor {
         });
     }
 
+    /**
+     * Search Jackett. When a tag is supplied the query is sent to just the
+     * indexers carrying that tag, stopping early once a release reaches
+     * stopAtSeeders.
+     */
+    async searchJackett(query, { tag = null, category = 3000, timeout = 25000, stopAtSeeders = null } = {}) {
+        if (!query) return [];
+
+        const indexers = tag ? this.resolveTaggedIndexers(tag) : [];
+        if (indexers.length === 0) {
+            return this._searchIndexer('all', query, { category, timeout });
+        }
+
+        const merged = new Map();
+        for (const indexer of indexers) {
+            const releases = await this._searchIndexer(indexer, query, { category, timeout });
+            for (const release of releases) {
+                if (!merged.has(release.title)) merged.set(release.title, release);
+            }
+            if (stopAtSeeders !== null && [...merged.values()].some(r => (r.seeders || 0) >= stopAtSeeders)) break;
+        }
+        return [...merged.values()].sort((a, b) => b.score - a.score);
+    }
     /**
      * Quality Classifier:
      * - MP3 128k / 192k ➔ Tier 1 (Preferred Low Quality)
@@ -182,6 +235,195 @@ class LocalDownloadReconstructor {
         return processed;
     }
 
+    _normalizeKey(value) {
+        return (value || '')
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    /**
+     * Build album-level download suggestions from a playlist, keeping only
+     * albums that have at least one track missing from the library.
+     */
+    buildSuggestions(playlist, libraryTracks = [], { maxAlbums = 10 } = {}) {
+        const ownedTracks = new Set();
+        const ownedAlbums = new Set();
+        for (const track of libraryTracks) {
+            ownedTracks.add(`${this._normalizeKey(track.artist)}|${this._normalizeKey(track.title)}`);
+            ownedAlbums.add(`${this._normalizeKey(track.artist)}|${this._normalizeKey(track.album)}`);
+        }
+
+        const albums = new Map();
+        for (const track of playlist.tracks || []) {
+            if (!track.title && !track.album) continue;
+            const artist = track.artist || '';
+            const album = track.album || track.title;
+            const key = `${this._normalizeKey(artist)}|${this._normalizeKey(album)}`;
+            if (!albums.has(key)) albums.set(key, { artist, album, tracks: [] });
+            albums.get(key).tracks.push({
+                title: track.title,
+                artist,
+                album,
+                owned: ownedTracks.has(`${this._normalizeKey(artist)}|${this._normalizeKey(track.title)}`),
+            });
+        }
+
+        const suggestions = [];
+        for (const entry of albums.values()) {
+            const missing = entry.tracks.filter(t => !t.owned);
+            if (missing.length === 0) continue;
+            suggestions.push({
+                artist: entry.artist,
+                album: entry.album,
+                totalTracks: entry.tracks.length,
+                missingCount: missing.length,
+                ownedCount: entry.tracks.length - missing.length,
+                alreadyInLibrary: ownedAlbums.has(`${this._normalizeKey(entry.artist)}|${this._normalizeKey(entry.album)}`),
+                tracks: entry.tracks,
+            });
+        }
+
+        suggestions.sort((a, b) => b.missingCount - a.missingCount || a.artist.localeCompare(b.artist));
+
+        return {
+            playlistName: playlist.name,
+            totalTracks: (playlist.tracks || []).length,
+            missingTracks: suggestions.reduce((n, s) => n + s.missingCount, 0),
+            totalAlbums: suggestions.length,
+            returnedAlbums: Math.min(suggestions.length, maxAlbums),
+            albums: suggestions.slice(0, maxAlbums),
+        };
+    }
+
+    _pickByThreshold(releases, thresholds) {
+        for (const min of thresholds) {
+            const eligible = releases.filter(r => (r.seeders || 0) >= min);
+            if (eligible.length > 0) {
+                return eligible.slice().sort((a, b) => b.score - a.score)[0];
+            }
+        }
+        return null;
+    }
+
+    _thresholdFor(seeders, thresholds) {
+        const matched = thresholds.find(t => seeders >= t);
+        return matched === undefined ? null : matched;
+    }
+
+    _looksLikeAlbum(title, album) {
+        const haystack = this._normalizeKey(title);
+        const needle = this._normalizeKey(album);
+        if (!needle) return true;
+        if (haystack.includes(needle)) return true;
+        const tokens = needle.split(' ').filter(word => word.length > 2);
+        if (tokens.length === 0) return true;
+        const matched = tokens.filter(token => haystack.includes(token)).length;
+        return matched === tokens.length || (tokens.length > 3 && matched / tokens.length >= 0.8);
+    }
+
+    /**
+     * Find the best release for one album, preferring well-seeded results and
+     * relaxing the seeder threshold before giving up.
+     */
+    async findReleaseForAlbum(artist, album, { tag = 'music', thresholds = [20, 15, 10, 5], maxQueries = 2 } = {}) {
+        const primary = [artist, album].filter(Boolean).join(' ').trim();
+        const queries = [];
+        if (primary) queries.push(primary);
+        if (album && this._normalizeKey(album) !== this._normalizeKey(primary)) queries.push(album);
+
+        const seen = new Map();
+        let queriesUsed = 0;
+        let accepted = null;
+
+        for (const query of queries.slice(0, maxQueries)) {
+            queriesUsed++;
+            const releases = await this.searchJackett(query, { tag, stopAtSeeders: thresholds[0] });
+            for (const release of releases) {
+                if (!release.magnetUrl && !release.downloadUrl) continue;
+                if (!this._looksLikeAlbum(release.title, album)) continue;
+                if (!seen.has(release.title)) seen.set(release.title, release);
+            }
+            const strong = this._pickByThreshold([...seen.values()], [thresholds[0]]);
+            if (strong) { accepted = strong; break; }
+        }
+
+        const candidates = [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 5);
+        const chosen = accepted || this._pickByThreshold(candidates, thresholds);
+
+        return {
+            query: primary,
+            queriesUsed,
+            found: !!chosen,
+            threshold: chosen ? this._thresholdFor(chosen.seeders || 0, thresholds) : null,
+            bestRelease: chosen,
+            candidates,
+        };
+    }
+
+    /**
+     * Match a bounded list of albums sequentially, stopping each album as soon
+     * as a release clears the seeder threshold.
+     */
+    async matchAlbums(albums, { maxAlbums = 10, tag = 'music', thresholds } = {}) {
+        const limited = (albums || []).slice(0, maxAlbums);
+        const results = [];
+        for (const album of limited) {
+            const match = await this.findReleaseForAlbum(album.artist, album.album, { tag, thresholds });
+            results.push({ ...album, ...match });
+        }
+        const matchedCount = results.filter(r => r.found).length;
+        return {
+            totalAlbums: limited.length,
+            matchedCount,
+            unmatchedCount: limited.length - matchedCount,
+            queriesUsed: results.reduce((n, r) => n + (r.queriesUsed || 0), 0),
+            results,
+        };
+    }
+
+    _magnetHash(url) {
+        const match = /xt=urn:btih:([a-z0-9]+)/i.exec(url || '');
+        return match ? match[1].toLowerCase() : null;
+    }
+
+    /**
+     * Remove a torrent from the isolated qBittorrent instance.
+     */
+    async cancelDownload(hash, { deleteFiles = false } = {}) {
+        if (!hash) return { success: false, error: 'Torrent hash is required' };
+        await this._ensureQbitAuth();
+        const parsedUrl = new URL(this.qbitUrl);
+        const body = `hashes=${encodeURIComponent(hash)}&deleteFiles=${deleteFiles ? 'true' : 'false'}`;
+
+        return new Promise((resolve) => {
+            const headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(body)
+            };
+            if (this.qbitSid) headers['Cookie'] = this.qbitSid;
+
+            const req = http.request({
+                hostname: parsedUrl.hostname,
+                port: parsedUrl.port || 8082,
+                path: '/api/v2/torrents/delete',
+                method: 'POST',
+                headers,
+                timeout: 8000
+            }, (res) => {
+                let data = '';
+                res.on('data', c => { data += c; });
+                res.on('end', () => resolve({ success: res.statusCode === 200, status: res.statusCode, hash }));
+            });
+            req.on('error', (err) => resolve({ success: false, error: err.message }));
+            req.on('timeout', () => { req.destroy(); resolve({ success: false, error: 'qBittorrent timeout' }); });
+            req.write(body);
+            req.end();
+        });
+    }
+
     /**
      * Match all tracks from a selected playlist against Jackett.
      */
@@ -244,7 +486,45 @@ class LocalDownloadReconstructor {
     }
 
     /**
-     * Send approved releases to local qBittorrent on port 8081 with category 'music'.
+     * Authenticate against the isolated VaultStreaming qBittorrent WebUI.
+     */
+    async _ensureQbitAuth() {
+        if (!this.qbitUser || !this.qbitPass) return true;
+        if (this.qbitSid) return true;
+
+        const parsedUrl = new URL(this.qbitUrl);
+        const postData = `username=${encodeURIComponent(this.qbitUser)}&password=${encodeURIComponent(this.qbitPass)}`;
+
+        return new Promise((resolve) => {
+            const req = http.request({
+                hostname: parsedUrl.hostname,
+                port: parsedUrl.port || 80,
+                path: '/api/v2/auth/login',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Length': Buffer.byteLength(postData)
+                },
+                timeout: 8000
+            }, (res) => {
+                let body = '';
+                res.on('data', c => { body += c; });
+                res.on('end', () => {
+                    const cookies = res.headers['set-cookie'] || [];
+                    const sid = (Array.isArray(cookies) ? cookies : [cookies]).find(x => x.startsWith('SID='));
+                    if (sid) this.qbitSid = sid.split(';')[0];
+                    resolve(res.statusCode === 200 && body.includes('Ok.'));
+                });
+            });
+            req.on('error', () => resolve(false));
+            req.on('timeout', () => { req.destroy(); resolve(false); });
+            req.write(postData);
+            req.end();
+        });
+    }
+
+    /**
+     * Send approved releases to the isolated VaultStreaming qBittorrent (category 'music').
      */
     async queueDownload(release, allowLossless = false) {
         if (!release || (!release.magnetUrl && !release.downloadUrl)) {
@@ -271,10 +551,14 @@ class LocalDownloadReconstructor {
             };
         }
 
-        return this._addToQbittorrent(release.magnetUrl || release.downloadUrl);
+        const target = release.magnetUrl || release.downloadUrl;
+        const result = await this._addToQbittorrent(target);
+        return { ...result, hash: this._magnetHash(target) };
     }
 
     async _addToQbittorrent(torrentUrl) {
+        await this._ensureQbitAuth();
+        const parsedUrl = new URL(this.qbitUrl);
         return new Promise((resolve) => {
             try {
                 const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
@@ -294,15 +578,18 @@ class LocalDownloadReconstructor {
                     `--${boundary}--`
                 ].join('\r\n');
 
+                const headers = {
+                    'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                    'Content-Length': Buffer.byteLength(postData)
+                };
+                if (this.qbitSid) headers['Cookie'] = this.qbitSid;
+
                 const opts = {
-                    hostname: '127.0.0.1',
-                    port: 8081,
+                    hostname: parsedUrl.hostname,
+                    port: parsedUrl.port || 8082,
                     path: '/api/v2/torrents/add',
                     method: 'POST',
-                    headers: {
-                        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-                        'Content-Length': Buffer.byteLength(postData)
-                    },
+                    headers,
                     timeout: 8000
                 };
 
