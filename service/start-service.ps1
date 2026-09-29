@@ -26,7 +26,8 @@ for ($i = 0; $i -lt 60; $i++) {
     try {
         $candidate = (& $tailscale ip -4 2>$null | Select-Object -First 1)
         if ($candidate -match '^\d+\.\d+\.\d+\.\d+$') { $tailnetIp = $candidate.Trim(); break }
-    } catch { }
+    }
+    catch { }
     Start-Sleep -Seconds 5
 }
 
@@ -39,14 +40,26 @@ Write-Log "Tailnet up ($tailnetIp); starting Vault Music server on 0.0.0.0:8733 
 
 Set-Location $RepoRoot
 
+
+
+$qbitStartupScript = Join-Path $PSScriptRoot 'start-qbittorrent.ps1'
+try {
+    & $qbitStartupScript *>> $LogFile
+    Write-Log 'VaultStreaming qBittorrent startup check completed.'
+}
+catch {
+    Write-Log "WARNING: VaultStreaming qBittorrent startup failed: $($_.Exception.Message)"
+}
+
 # Reclaim port 8733 before starting. Kills any stale node process holding the port.
 $portOwners = (netstat -ano | Select-String ':8733\s.*LISTENING') |
-    ForEach-Object { ($_ -split '\s+')[-1] } | Select-Object -Unique
+ForEach-Object { ($_ -split '\s+')[-1] } | Select-Object -Unique
 foreach ($owner in $portOwners) {
     try {
         Write-Log "Killing stale listener on 8733 (pid $owner)"
         Stop-Process -Id $owner -Force -ErrorAction Stop
-    } catch { Write-Log "Could not kill pid ${owner}: $_" }
+    }
+    catch { Write-Log "Could not kill pid ${owner}: $_" }
 }
 if ($portOwners) { Start-Sleep -Seconds 2 }
 
