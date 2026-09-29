@@ -1539,17 +1539,6 @@ body {
     box-shadow: 0 0 20px var(--vwsq-iris-glow);
     transform: scale(1.06);
 }
-    height: 38px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--vwsq-iris-500), var(--ctp-mauve));
-    border: none;
-    color: #ffffff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 10px var(--vwsq-iris-glow);
-}
 
 /* ======================================================== */
 /* APPLE MUSIC BOTTOM TAB BAR                               */
@@ -2247,3 +2236,4 @@ body {
     border-right: 1px solid var(--vwsq-console-border);
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
 }
+
