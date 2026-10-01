@@ -120,7 +120,7 @@ def read_chunk_from(stream):
 def _normalise(value):
     value = unicodedata.normalize("NFKD", value or "")
     value = "".join(char for char in value if not unicodedata.combining(char)).casefold()
-    return " ".join(re.findall(r"[a-z0-9]+", value))
+    return " ".join(re.findall(r"[^\W_]+", value))
 
 
 def _similarity(left, right):
