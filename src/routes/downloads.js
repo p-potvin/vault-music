@@ -262,10 +262,23 @@ function createDownloadsRouter(downloadService, options = {}) {
         }
 
         try {
+            const sanitizedAlbums = albums
+                .filter(item => item && typeof item === 'object')
+                .map(item => ({
+                    artist: String(item.artist || '').trim().slice(0, 200),
+                    album: String(item.album || '').trim().slice(0, 200),
+                }))
+                .filter(item => item.artist && item.album)
+                .slice(0, 50);
+
+            if (sanitizedAlbums.length === 0) {
+                return res.status(400).json({ error: 'Valid albums array with artist and album is required' });
+            }
+
             const limit = Number.isInteger(maxAlbums) && maxAlbums > 0 ? Math.min(maxAlbums, 10) : 10;
-            const result = await localReconstructor.matchAlbums(albums, {
+            const result = await localReconstructor.matchAlbums(sanitizedAlbums, {
                 maxAlbums: limit,
-                tag: typeof tag === 'string' && tag.trim() ? tag.trim() : 'music',
+                tag: typeof tag === 'string' && tag.trim() ? tag.trim().slice(0, 50) : 'music',
             });
             res.json({ success: true, ...result });
         } catch (err) {
@@ -278,15 +291,19 @@ function createDownloadsRouter(downloadService, options = {}) {
      */
     router.post('/cancel', async (req, res) => {
         const { hash, deleteFiles } = req.body;
-        if (!hash) {
+        if (!hash || typeof hash !== 'string') {
             return res.status(400).json({ error: 'hash is required' });
+        }
+        const trimmedHash = hash.trim();
+        if (!/^[a-f0-9]{40}$/i.test(trimmedHash) && !/^[a-z2-7]{32}$/i.test(trimmedHash)) {
+            return res.status(400).json({ error: 'Invalid torrent hash format' });
         }
         if (!localReconstructor) {
             return res.status(500).json({ error: 'Local reconstructor not configured' });
         }
 
         try {
-            res.json(await localReconstructor.cancelDownload(hash, { deleteFiles: deleteFiles === true }));
+            res.json(await localReconstructor.cancelDownload(trimmedHash, { deleteFiles: deleteFiles === true }));
         } catch (err) {
             res.status(500).json({ error: err.message });
         }

@@ -135,13 +135,16 @@ class LocalDownloadReconstructor {
     /**
      * Search Jackett. When a tag is supplied the query is sent to just the
      * indexers carrying that tag, stopping early once a release reaches
-     * stopAtSeeders.
+     * stopAtSeeders and satisfies filter (if provided).
      */
-    async searchJackett(query, { tag = null, category = 3000, timeout = 25000, stopAtSeeders = null } = {}) {
+    async searchJackett(query, { tag = null, category = 3000, timeout = 25000, stopAtSeeders = null, filter = null } = {}) {
         if (!query) return [];
 
         const indexers = tag ? this.resolveTaggedIndexers(tag) : [];
-        if (indexers.length === 0) {
+        if (tag && indexers.length === 0) {
+            return [];
+        }
+        if (!tag && indexers.length === 0) {
             return this._searchIndexer('all', query, { category, timeout });
         }
 
@@ -151,7 +154,10 @@ class LocalDownloadReconstructor {
             for (const release of releases) {
                 if (!merged.has(release.title)) merged.set(release.title, release);
             }
-            if (stopAtSeeders !== null && [...merged.values()].some(r => (r.seeders || 0) >= stopAtSeeders)) break;
+            if (stopAtSeeders !== null) {
+                const hasThresholdRelease = [...merged.values()].some(r => (!filter || filter(r)) && (r.seeders || 0) >= stopAtSeeders);
+                if (hasThresholdRelease) break;
+            }
         }
         return [...merged.values()].sort((a, b) => b.score - a.score);
     }
@@ -249,11 +255,22 @@ class LocalDownloadReconstructor {
      * albums that have at least one track missing from the library.
      */
     buildSuggestions(playlist, libraryTracks = [], { maxAlbums = 10 } = {}) {
-        const ownedTracks = new Set();
+        const ownedExactTracks = new Set();
+        const ownedAnyTracks = new Set();
         const ownedAlbums = new Set();
         for (const track of libraryTracks) {
-            ownedTracks.add(`${this._normalizeKey(track.artist)}|${this._normalizeKey(track.title)}`);
-            ownedAlbums.add(`${this._normalizeKey(track.artist)}|${this._normalizeKey(track.album)}`);
+            const artistKey = this._normalizeKey(track.artist);
+            const titleKey = this._normalizeKey(track.title);
+            const albumKey = this._normalizeKey(track.album);
+            if (artistKey && titleKey) {
+                ownedAnyTracks.add(`${artistKey}|${titleKey}`);
+                if (albumKey) {
+                    ownedExactTracks.add(`${artistKey}|${albumKey}|${titleKey}`);
+                }
+            }
+            if (artistKey && albumKey) {
+                ownedAlbums.add(`${artistKey}|${albumKey}`);
+            }
         }
 
         const albums = new Map();
@@ -263,11 +280,16 @@ class LocalDownloadReconstructor {
             const album = track.album || track.title;
             const key = `${this._normalizeKey(artist)}|${this._normalizeKey(album)}`;
             if (!albums.has(key)) albums.set(key, { artist, album, tracks: [] });
+
+            const exactKey = `${this._normalizeKey(artist)}|${this._normalizeKey(album)}|${this._normalizeKey(track.title)}`;
+            const genericKey = `${this._normalizeKey(artist)}|${this._normalizeKey(track.title)}`;
+            const isOwned = ownedExactTracks.has(exactKey) || (!track.album && ownedAnyTracks.has(genericKey));
+
             albums.get(key).tracks.push({
                 title: track.title,
                 artist,
                 album,
-                owned: ownedTracks.has(`${this._normalizeKey(artist)}|${this._normalizeKey(track.title)}`),
+                owned: isOwned,
             });
         }
 
@@ -340,9 +362,14 @@ class LocalDownloadReconstructor {
 
         for (const query of queries.slice(0, maxQueries)) {
             queriesUsed++;
-            const releases = await this.searchJackett(query, { tag, stopAtSeeders: thresholds[0] });
+            const releases = await this.searchJackett(query, {
+                tag,
+                stopAtSeeders: thresholds[0],
+                filter: r => !r.isLossless && this._looksLikeAlbum(r.title, album)
+            });
             for (const release of releases) {
                 if (!release.magnetUrl && !release.downloadUrl) continue;
+                if (release.isLossless) continue;
                 if (!this._looksLikeAlbum(release.title, album)) continue;
                 if (!seen.has(release.title)) seen.set(release.title, release);
             }
@@ -350,8 +377,11 @@ class LocalDownloadReconstructor {
             if (strong) { accepted = strong; break; }
         }
 
-        const candidates = [...seen.values()].sort((a, b) => b.score - a.score).slice(0, 5);
-        const chosen = accepted || this._pickByThreshold(candidates, thresholds);
+        const allReleases = [...seen.values()];
+        const chosen = accepted || this._pickByThreshold(allReleases, thresholds);
+        const candidates = allReleases
+            .sort((a, b) => (b.seeders || 0) - (a.seeders || 0) || b.score - a.score)
+            .slice(0, 5);
 
         return {
             query: primary,
@@ -393,10 +423,14 @@ class LocalDownloadReconstructor {
      * Remove a torrent from the isolated qBittorrent instance.
      */
     async cancelDownload(hash, { deleteFiles = false } = {}) {
-        if (!hash) return { success: false, error: 'Torrent hash is required' };
+        if (!hash || typeof hash !== 'string') return { success: false, error: 'Torrent hash is required' };
+        const cleanHash = hash.trim().toLowerCase();
+        if (!/^[a-f0-9]{40}$/i.test(cleanHash) && !/^[a-z2-7]{32}$/i.test(cleanHash)) {
+            return { success: false, error: 'Invalid torrent hash format' };
+        }
         await this._ensureQbitAuth();
         const parsedUrl = new URL(this.qbitUrl);
-        const body = `hashes=${encodeURIComponent(hash)}&deleteFiles=${deleteFiles ? 'true' : 'false'}`;
+        const body = `hashes=${encodeURIComponent(cleanHash)}&deleteFiles=${deleteFiles ? 'true' : 'false'}`;
 
         return new Promise((resolve) => {
             const headers = {
@@ -441,9 +475,9 @@ class LocalDownloadReconstructor {
 
             let bestRelease = null;
             if (releases.length > 0) {
-                // Find highest ranked lossy release first
+                // Find highest ranked lossy release first (lossless not allowed)
                 const lossyRelease = releases.find(r => !r.isLossless);
-                bestRelease = lossyRelease || releases[0];
+                bestRelease = lossyRelease || null;
             }
 
             matches.push({
@@ -598,6 +632,13 @@ class LocalDownloadReconstructor {
                     res.on('data', c => { body += c; });
                     res.on('end', () => {
                         if (res.statusCode === 200 || res.statusCode === 201) {
+                            if (typeof body === 'string' && body.trim() === 'Fails.') {
+                                resolve({
+                                    success: false,
+                                    error: 'qBittorrent rejected torrent: Fails.'
+                                });
+                                return;
+                            }
                             resolve({
                                 success: true,
                                 message: 'Torrent queued in qBittorrent successfully',

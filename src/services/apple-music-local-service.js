@@ -64,9 +64,21 @@ class AppleMusicLocalService {
                     return;
                 }
 
-                fs.mkdirSync(path.dirname(target), { recursive: true });
-                fs.copyFileSync(src, target);
-                copied++;
+                const targetDir = path.dirname(target);
+                fs.mkdirSync(targetDir, { recursive: true });
+                const tempTarget = path.join(targetDir, `.${path.basename(target)}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`);
+                try {
+                    fs.copyFileSync(src, tempTarget);
+                    fs.renameSync(tempTarget, target);
+                    copied++;
+                } catch (err) {
+                    try {
+                        if (fs.existsSync(tempTarget)) {
+                            fs.unlinkSync(tempTarget);
+                        }
+                    } catch (_) {}
+                    throw err;
+                }
             };
 
             walk(this.sourceDir, '');
@@ -146,17 +158,18 @@ class AppleMusicLocalService {
         }
 
         const playlists = [];
-        const seenNames = new Set();
+        const seenIds = new Set();
 
         const musicDbPath = path.join(this.backupDir, MUSICDB_REL);
         if (fs.existsSync(musicDbPath)) {
             try {
                 for (const playlist of readPlaylists(musicDbPath)) {
                     if (!includeSystem && playlist.isSystem) continue;
-                    if (seenNames.has(playlist.name)) continue;
-                    seenNames.add(playlist.name);
+                    const id = `apple-${playlist.id}`;
+                    if (seenIds.has(id)) continue;
+                    seenIds.add(id);
                     playlists.push({
-                        id: `apple-${playlist.id}`,
+                        id,
                         name: playlist.name,
                         source: 'library-musicdb',
                         isSystem: playlist.isSystem,
@@ -182,8 +195,8 @@ class AppleMusicLocalService {
                 if (entry.name === INDEX_FILE || entry.name === 'snapshot_manifest.json') continue;
                 try {
                     const parsed = this._parsePlaylistFile(fullPath);
-                    if (parsed && parsed.tracks && parsed.tracks.length > 0 && !seenNames.has(parsed.name)) {
-                        seenNames.add(parsed.name);
+                    if (parsed && parsed.tracks && parsed.tracks.length > 0 && !seenIds.has(parsed.id)) {
+                        seenIds.add(parsed.id);
                         playlists.push(parsed);
                     }
                 } catch (_) {}

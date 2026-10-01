@@ -1877,7 +1877,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const albumKey = (album) => `${album.artist}||${album.album}`;
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function selectedTracksFor(album) {
+        if (!album || !Array.isArray(album.tracks)) return [];
         return album.tracks.filter((track, index) => {
             if (track.owned) return false;
             const box = suggestionsList.querySelector(`.suggestion-track-check[data-album="${index}"][data-key="${CSS.escape(albumKey(album))}"]`);
@@ -1885,7 +1896,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function isAlbumSelected(album) {
+    function isAlbumSelected(albumOrMatch) {
+        const album = (albumOrMatch && Array.isArray(albumOrMatch.tracks))
+            ? albumOrMatch
+            : suggestedAlbums.find(a => albumKey(a) === albumKey(albumOrMatch));
+        if (!album) return false;
         return selectedTracksFor(album).length > 0;
     }
 
@@ -1904,13 +1919,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const card = document.createElement('div');
             card.className = 'suggestion-card';
 
-            const tracks = album.tracks.map((track, trackIdx) => {
+            const tracks = (album.tracks || []).map((track, trackIdx) => {
                 const checked = track.owned ? '' : 'checked';
                 const disabled = track.owned ? 'disabled' : '';
                 return `
                     <label class="suggestion-track${track.owned ? ' owned' : ''}">
                         <input type="checkbox" class="suggestion-track-check" data-album="${trackIdx}" data-key="${key}" ${checked} ${disabled}>
-                        <span>${track.title || '(untitled)'}${track.owned ? ' — already in library' : ''}</span>
+                        <span>${escapeHtml(track.title || '(untitled)')}${track.owned ? ' — already in library' : ''}</span>
                     </label>
                 `;
             }).join('');
@@ -1919,7 +1934,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="suggestion-head">
                     <label class="suggestion-label">
                         <input type="checkbox" class="suggestion-album-check" data-key="${key}" checked>
-                        <span>${album.artist || 'Unknown Artist'} — ${album.album}</span>
+                        <span>${escapeHtml(album.artist || 'Unknown Artist')} — ${escapeHtml(album.album)}</span>
                     </label>
                     <span class="suggestion-count">${album.missingCount}/${album.totalTracks} missing</span>
                 </div>
@@ -2014,9 +2029,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (release.isLossless) return;
                     slot.className = 'suggestion-release';
                     slot.innerHTML = `
-                        <span class="suggestion-badge ${badge}">${release.quality}</span>
-                        ${release.seeders} seeders · ${release.formattedSize} · ${release.tracker}
-                        <div title="${release.title}">${release.title}</div>
+                        <span class="suggestion-badge ${badge}">${escapeHtml(release.quality)}</span>
+                        ${Number(release.seeders) || 0} seeders · ${escapeHtml(release.formattedSize)} · ${escapeHtml(release.tracker)}
+                        <div title="${escapeHtml(release.title)}">${escapeHtml(release.title)}</div>
                     `;
                 });
 
@@ -2034,7 +2049,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnQueueSuggestions) {
         btnQueueSuggestions.addEventListener('click', async () => {
             const releases = matchedAlbums
-                .filter(match => match.found && match.bestRelease && isAlbumSelected(match))
+                .filter(match => match.found && match.bestRelease && !match.bestRelease.isLossless && isAlbumSelected(match))
                 .map(match => match.bestRelease);
 
             if (releases.length === 0) {
