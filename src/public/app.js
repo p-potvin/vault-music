@@ -1833,14 +1833,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const r = m.bestRelease;
                         let badgeClass = 'q-badge lossy';
                         if (r.quality.includes('128') || r.quality.includes('192')) badgeClass = 'q-badge low';
-                        else if (r.isLossless) badgeClass = 'q-badge lossless';
-
-                        const confirmCell = r.isLossless ? `
-                            <label class="confirm-checkbox-wrap">
-                                <input type="checkbox" class="check-lossless-confirm" data-idx="${mIdx}">
-                                <span>Confirm Lossless</span>
-                            </label>
-                        ` : `<span style="color: var(--ctp-green); font-size: 12px;">✓ Approved</span>`;
 
                         tr.innerHTML = `
                             <td><strong>${trackName}</strong></td>
@@ -2019,12 +2011,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const release = match.bestRelease;
                     let badge = 'standard';
                     if (release.quality.includes('128') || release.quality.includes('192')) badge = 'low';
-                    else if (release.isLossless) badge = 'lossless';
+                    else if (release.isLossless) return;
                     slot.className = 'suggestion-release';
                     slot.innerHTML = `
                         <span class="suggestion-badge ${badge}">${release.quality}</span>
                         ${release.seeders} seeders · ${release.formattedSize} · ${release.tracker}
-                        ${release.isLossless ? ' · <em>needs lossless confirmation</em>' : ''}
                         <div title="${release.title}">${release.title}</div>
                     `;
                 });
@@ -2057,7 +2048,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await apiFetch('/api/v1/downloads/apple-music-local/queue-download', {
                     method: 'POST',
-                    body: JSON.stringify({ releases, allowLossless: true })
+                    body: JSON.stringify({ releases, allowLossless: false })
                 });
                 const data = await res.json();
                 alert(`Queued ${data.successCount} of ${data.total} album release(s).`);
@@ -2077,26 +2068,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!currentPlaylistMatches || currentPlaylistMatches.length === 0) return;
 
             const releasesToQueue = [];
-            let unconfirmedLossless = 0;
 
-            const checkboxes = document.querySelectorAll('.check-lossless-confirm');
-            const confirmedIndices = new Set();
-            checkboxes.forEach(cb => {
-                if (cb.checked) confirmedIndices.add(parseInt(cb.dataset.idx, 10));
-            });
-
-            currentPlaylistMatches.forEach((m, idx) => {
+            currentPlaylistMatches.forEach((m) => {
                 if (m.matchFound && m.bestRelease) {
-                    if (m.bestRelease.isLossless && !confirmedIndices.has(idx)) {
-                        unconfirmedLossless++;
-                        return;
-                    }
                     releasesToQueue.push(m.bestRelease);
                 }
             });
 
             if (releasesToQueue.length === 0) {
-                alert('No releases ready to queue. ' + (unconfirmedLossless > 0 ? `${unconfirmedLossless} lossless tracks need checkbox confirmation.` : ''));
+                alert('No releases ready to queue.');
                 return;
             }
 
@@ -2106,7 +2086,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await apiFetch('/api/v1/downloads/apple-music-local/queue-download', {
                     method: 'POST',
-                    body: JSON.stringify({ releases: releasesToQueue, allowLossless: true })
+                    body: JSON.stringify({ releases: releasesToQueue, allowLossless: false })
                 });
                 const data = await res.json();
 
