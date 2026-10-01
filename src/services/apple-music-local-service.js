@@ -1,74 +1,124 @@
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { readPlaylists } = require('./apple-musicdb-parser');
+
+const SKIP_DIRS = new Set(['media', 'artwork', 'artwork_originals']);
+const INDEX_FILE = 'snapshot_index.json';
+const MUSICDB_REL = path.join('Apple Music Library.musiclibrary', 'Library.musicdb');
 
 class AppleMusicLocalService {
     constructor(options = {}) {
         this.sourceDir = options.sourceDir || config.APPLE_MUSIC_SOURCE_DIR;
         this.backupDir = options.backupDir || config.APPLE_MUSIC_BACKUP_DIR;
+        this.indexPath = path.join(this.backupDir, INDEX_FILE);
+    }
+
+    _readIndex() {
+        try {
+            const data = JSON.parse(fs.readFileSync(this.indexPath, 'utf8'));
+            if (data && data.files) return data;
+        } catch (_) {}
+        return { version: 1, updatedAt: null, sourceDir: this.sourceDir, files: {} };
     }
 
     /**
-     * Creates a safe, non-destructive clone of Apple Music library files into G:\Music\AppleMusic_Backup
+     * Incrementally clone Apple Music library files into the backup directory.
+     * Files already present with a matching size and mtime are skipped, so a
+     * refresh only copies what actually changed.
      */
     async createSafeSnapshot() {
         if (!fs.existsSync(this.sourceDir)) {
-            return {
-                success: false,
-                error: `Source directory does not exist: ${this.sourceDir}`
-            };
+            return { success: false, error: `Source directory does not exist: ${this.sourceDir}` };
         }
 
         try {
-            if (!fs.existsSync(this.backupDir)) {
-                fs.mkdirSync(this.backupDir, { recursive: true });
-            }
+            if (!fs.existsSync(this.backupDir)) fs.mkdirSync(this.backupDir, { recursive: true });
 
-            const copiedFiles = [];
+            const previous = this._readIndex();
+            const nextFiles = {};
+            let copied = 0;
+            let skipped = 0;
             let totalBytes = 0;
 
-            const copyRecursive = (src, dest) => {
-                if (!fs.existsSync(src)) return;
+            const walk = (src, rel) => {
                 const stats = fs.statSync(src);
                 if (stats.isDirectory()) {
-                    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-                    const entries = fs.readdirSync(src);
-                    for (const entry of entries) {
-                        // Skip deep media and artwork cache files to keep snapshot ultra-fast and lightweight
-                        const lowEntry = entry.toLowerCase();
-                        if (['media', 'artwork', 'artwork_originals'].includes(lowEntry)) continue;
-                        copyRecursive(path.join(src, entry), path.join(dest, entry));
+                    if (SKIP_DIRS.has(path.basename(src).toLowerCase())) return;
+                    for (const entry of fs.readdirSync(src)) {
+                        walk(path.join(src, entry), path.join(rel, entry));
                     }
-                } else if (stats.isFile()) {
-                    fs.copyFileSync(src, dest);
-                    copiedFiles.push(dest);
-                    totalBytes += stats.size;
+                    return;
+                }
+
+                const key = rel.split(path.sep).join('/');
+                nextFiles[key] = { size: stats.size, mtimeMs: Math.round(stats.mtimeMs) };
+                totalBytes += stats.size;
+
+                const target = path.join(this.backupDir, rel);
+                const known = previous.files[key];
+                const unchanged = known && known.size === nextFiles[key].size && known.mtimeMs === nextFiles[key].mtimeMs;
+
+                if (unchanged && fs.existsSync(target)) {
+                    skipped++;
+                    return;
+                }
+
+                const targetDir = path.dirname(target);
+                fs.mkdirSync(targetDir, { recursive: true });
+                const tempTarget = path.join(targetDir, `.${path.basename(target)}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`);
+                try {
+                    fs.copyFileSync(src, tempTarget);
+                    fs.renameSync(tempTarget, target);
+                    copied++;
+                } catch (err) {
+                    try {
+                        if (fs.existsSync(tempTarget)) {
+                            fs.unlinkSync(tempTarget);
+                        }
+                    } catch (_) {}
+                    throw err;
                 }
             };
 
-            copyRecursive(this.sourceDir, this.backupDir);
+            walk(this.sourceDir, '');
 
-            const manifestPath = path.join(this.backupDir, 'snapshot_manifest.json');
+            const removed = Object.keys(previous.files).filter(key => !nextFiles[key]);
+            for (const key of removed) {
+                try {
+                    fs.unlinkSync(path.join(this.backupDir, key.split('/').join(path.sep)));
+                } catch (_) {}
+            }
+
+            const fileCount = Object.keys(nextFiles).length;
             const manifest = {
                 timestamp: new Date().toISOString(),
                 sourceDir: this.sourceDir,
                 backupDir: this.backupDir,
-                fileCount: copiedFiles.length,
+                fileCount,
                 totalBytes,
-                formattedSize: (totalBytes / (1024 * 1024)).toFixed(2) + ' MB'
+                formattedSize: (totalBytes / (1024 * 1024)).toFixed(2) + ' MB',
+                copiedCount: copied,
+                skippedCount: skipped,
+                removedCount: removed.length,
+                incremental: true,
             };
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+
+            fs.writeFileSync(path.join(this.backupDir, 'snapshot_manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+            fs.writeFileSync(this.indexPath, JSON.stringify({
+                version: 1,
+                updatedAt: manifest.timestamp,
+                sourceDir: this.sourceDir,
+                files: nextFiles,
+            }, null, 2), 'utf8');
 
             return {
                 success: true,
-                message: `Safe snapshot created successfully in ${this.backupDir}`,
-                manifest
+                message: `Snapshot refreshed in ${this.backupDir}`,
+                manifest,
             };
         } catch (err) {
-            return {
-                success: false,
-                error: `Failed to create safe snapshot: ${err.message}`
-            };
+            return { success: false, error: `Failed to create safe snapshot: ${err.message}` };
         }
     }
 
@@ -77,10 +127,13 @@ class AppleMusicLocalService {
      */
     getSnapshotStatus() {
         const manifestPath = path.join(this.backupDir, 'snapshot_manifest.json');
+        const index = this._readIndex();
+        const indexedFiles = Object.keys(index.files || {}).length;
+
         if (fs.existsSync(manifestPath)) {
             try {
                 const data = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-                return { hasSnapshot: true, manifest: data };
+                return { hasSnapshot: true, manifest: data, indexedFiles, indexUpdatedAt: index.updatedAt };
             } catch (_) {}
         }
 
@@ -88,84 +141,75 @@ class AppleMusicLocalService {
         return {
             hasSnapshot: hasFiles,
             backupDir: this.backupDir,
-            sourceDir: this.sourceDir
+            sourceDir: this.sourceDir,
+            indexedFiles,
+            indexUpdatedAt: index.updatedAt,
         };
     }
 
     /**
-     * Scans the safe snapshot directory for exported playlists, .xml, .m3u8, .txt, or binary musicdb files.
+     * Scans the safe snapshot for playlists. Apple Music playlists come from
+     * the library database; exported .xml/.m3u/.json/.txt files are also read.
      */
-    async scanSnapshotPlaylists() {
+    async scanSnapshotPlaylists({ includeSystem = false } = {}) {
         const snapshot = this.getSnapshotStatus();
         if (!snapshot.hasSnapshot) {
             await this.createSafeSnapshot();
         }
 
         const playlists = [];
-        const seenNames = new Set();
+        const seenIds = new Set();
+
+        const musicDbPath = path.join(this.backupDir, MUSICDB_REL);
+        if (fs.existsSync(musicDbPath)) {
+            try {
+                for (const playlist of readPlaylists(musicDbPath)) {
+                    if (!includeSystem && playlist.isSystem) continue;
+                    const id = `apple-${playlist.id}`;
+                    if (seenIds.has(id)) continue;
+                    seenIds.add(id);
+                    playlists.push({
+                        id,
+                        name: playlist.name,
+                        source: 'library-musicdb',
+                        isSystem: playlist.isSystem,
+                        trackCount: playlist.trackCount,
+                        tracks: playlist.tracks,
+                    });
+                }
+            } catch (err) {
+                return { success: false, error: `Failed to read Apple Music playlists: ${err.message}`, playlists: [] };
+            }
+        }
 
         const scanDir = (dir) => {
             if (!fs.existsSync(dir)) return;
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-            for (const entry of entries) {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
                     scanDir(fullPath);
-                } else if (entry.isFile()) {
-                    const ext = path.extname(entry.name).toLowerCase();
-                    if (['.xml', '.m3u', '.m3u8', '.txt', '.json'].includes(ext)) {
-                        try {
-                            const parsed = this._parsePlaylistFile(fullPath);
-                            if (parsed && parsed.tracks && parsed.tracks.length > 0) {
-                                if (!seenNames.has(parsed.name)) {
-                                    seenNames.add(parsed.name);
-                                    playlists.push(parsed);
-                                }
-                            }
-                        } catch (_) {}
-                    }
+                    continue;
                 }
+                const ext = path.extname(entry.name).toLowerCase();
+                if (!['.xml', '.m3u', '.m3u8', '.txt', '.json'].includes(ext)) continue;
+                if (entry.name === INDEX_FILE || entry.name === 'snapshot_manifest.json') continue;
+                try {
+                    const parsed = this._parsePlaylistFile(fullPath);
+                    if (parsed && parsed.tracks && parsed.tracks.length > 0 && !seenIds.has(parsed.id)) {
+                        seenIds.add(parsed.id);
+                        playlists.push(parsed);
+                    }
+                } catch (_) {}
             }
         };
 
         scanDir(this.backupDir);
 
-        // Also attempt binary extraction from Library.musicdb in backup directory
-        const musicDbPath = path.join(this.backupDir, 'Apple Music Library.musiclibrary', 'Library.musicdb');
-        if (fs.existsSync(musicDbPath)) {
-            const extracted = this._extractFromMusicDb(musicDbPath);
-            if (extracted && extracted.length > 0) {
-                extracted.forEach(pl => {
-                    if (!seenNames.has(pl.name)) {
-                        seenNames.add(pl.name);
-                        playlists.push(pl);
-                    }
-                });
-            }
-        }
-
-        // If no named playlist files exist yet, include sample discovery / library test playlists
-        if (playlists.length === 0) {
-            playlists.push({
-                id: 'apple-pl-favorites',
-                name: 'Apple Music — Top Favorites (Sample Test)',
-                source: 'local-snapshot',
-                trackCount: 5,
-                tracks: [
-                    { title: 'One More Time', artist: 'Daft Punk', album: 'Discovery', year: '2001' },
-                    { title: 'Harder, Better, Faster, Stronger', artist: 'Daft Punk', album: 'Discovery', year: '2001' },
-                    { title: 'Aerodynamic', artist: 'Daft Punk', album: 'Discovery', year: '2001' },
-                    { title: 'Digital Love', artist: 'Daft Punk', album: 'Discovery', year: '2001' },
-                    { title: 'Veridis Quo', artist: 'Daft Punk', album: 'Discovery', year: '2001' }
-                ]
-            });
-        }
-
         return {
             success: true,
+            source: musicDbPath && fs.existsSync(musicDbPath) ? 'library-musicdb' : 'files',
             totalPlaylists: playlists.length,
-            playlists
+            playlists,
         };
     }
 
@@ -217,7 +261,6 @@ class AppleMusicLocalService {
             };
         }
 
-        // Generic text tracklist: "Artist - Title" or "Title by Artist"
         if (ext === '.txt') {
             const lines = content.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
             const tracks = [];
@@ -239,21 +282,6 @@ class AppleMusicLocalService {
         }
 
         return null;
-    }
-
-    /**
-     * Extracts strings from Apple Music binary Library.musicdb
-     */
-    _extractFromMusicDb(dbPath) {
-        try {
-            const buf = fs.readFileSync(dbPath);
-            const str = buf.toString('utf8');
-            // Extract common ASCII / UTF-8 tracks
-            const titleMatches = str.match(/[\w\s,.'!?-]{3,50}/g) || [];
-            return [];
-        } catch (_) {
-            return [];
-        }
     }
 }
 

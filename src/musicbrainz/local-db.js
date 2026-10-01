@@ -42,28 +42,37 @@ print(json.dumps(rows))
         if (!this.isAvailable || (!title && !artist)) return null;
 
         const clean = (s) => (s || '').trim();
+        // Escape LIKE wildcards so titles such as "____" match literally,
+        // not "any 4+ characters".
+        const esc = (s) => clean(s).replace(/[\\%_]/g, (m) => '\\' + m);
+        const hasAlnum = (s) => /[\p{L}\p{N}]/u.test(clean(s));
 
         let sql = `
             SELECT r.gid as recordingMbid, r.name as title, r.length,
                    ac.name as artist, ac.id as artistCreditId
             FROM recordings r
             LEFT JOIN artist_credits ac ON r.artist_credit_id = ac.id
-            WHERE r.name LIKE ? AND ac.name LIKE ?
+            WHERE r.name LIKE ? ESCAPE '\\' AND ac.name LIKE ? ESCAPE '\\'
             LIMIT 1
         `;
-        let rows = this.query(sql, [`${clean(title)}%`, `%${clean(artist)}%`]);
+        let rows = this.query(sql, [`${esc(title)}%`, `%${esc(artist)}%`]);
         if (rows.length > 0) return this._formatResult(rows[0]);
 
-        sql = `
-            SELECT r.gid as recordingMbid, r.name as title, r.length,
-                   ac.name as artist, ac.id as artistCreditId
-            FROM recordings r
-            LEFT JOIN artist_credits ac ON r.artist_credit_id = ac.id
-            WHERE r.name LIKE ?
-            LIMIT 1
-        `;
-        rows = this.query(sql, [`${clean(title)}%`]);
-        if (rows.length > 0) return this._formatResult(rows[0]);
+        // Title-only fallback is only meaningful for a title that actually
+        // narrows the search — skip it for wildcard/punctuation-only titles,
+        // which otherwise return an arbitrary first row.
+        if (hasAlnum(title)) {
+            sql = `
+                SELECT r.gid as recordingMbid, r.name as title, r.length,
+                       ac.name as artist, ac.id as artistCreditId
+                FROM recordings r
+                LEFT JOIN artist_credits ac ON r.artist_credit_id = ac.id
+                WHERE r.name LIKE ? ESCAPE '\\'
+                LIMIT 1
+            `;
+            rows = this.query(sql, [`${esc(title)}%`]);
+            if (rows.length > 0) return this._formatResult(rows[0]);
+        }
 
         return null;
     }

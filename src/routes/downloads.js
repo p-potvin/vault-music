@@ -5,6 +5,7 @@ function createDownloadsRouter(downloadService, options = {}) {
     const appleMusicLocalService = options.appleMusicLocalService;
     const localReconstructor = options.localReconstructor;
     const postDownloadProcessor = options.postDownloadProcessor;
+    const libraryService = options.libraryService;
 
     /**
      * Get list of available indexers (Jackett + Lidarr).
@@ -214,6 +215,99 @@ function createDownloadsRouter(downloadService, options = {}) {
         }
     });
 
+    /**
+     * Report which Jackett indexers carry the music tag.
+     */
+    router.get('/apple-music-local/music-indexers', (req, res) => {
+        if (!localReconstructor) {
+            return res.status(500).json({ error: 'Local reconstructor not configured' });
+        }
+        res.json({ tag: 'music', indexers: localReconstructor.resolveTaggedIndexers('music') });
+    });
+
+    /**
+     * Suggest albums from a playlist that have tracks missing from the library.
+     */
+    router.post('/apple-music-local/suggestions', (req, res) => {
+        const { playlist, maxAlbums } = req.body;
+        if (!playlist || !Array.isArray(playlist.tracks)) {
+            return res.status(400).json({ error: 'Playlist object with tracks is required' });
+        }
+        if (!localReconstructor) {
+            return res.status(500).json({ error: 'Local reconstructor not configured' });
+        }
+
+        try {
+            const limit = Number.isInteger(maxAlbums) && maxAlbums > 0 ? Math.min(maxAlbums, 50) : 10;
+            const libraryTracks = libraryService ? libraryService.tracks : [];
+            res.json({
+                success: true,
+                ...localReconstructor.buildSuggestions(playlist, libraryTracks, { maxAlbums: limit }),
+            });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    /**
+     * Find releases for a bounded list of suggested albums.
+     */
+    router.post('/apple-music-local/match-albums', async (req, res) => {
+        const { albums, maxAlbums, tag } = req.body;
+        if (!Array.isArray(albums) || albums.length === 0) {
+            return res.status(400).json({ error: 'Albums array is required' });
+        }
+        if (!localReconstructor) {
+            return res.status(500).json({ error: 'Local reconstructor not configured' });
+        }
+
+        try {
+            const sanitizedAlbums = albums
+                .filter(item => item && typeof item === 'object')
+                .map(item => ({
+                    artist: String(item.artist || '').trim().slice(0, 200),
+                    album: String(item.album || '').trim().slice(0, 200),
+                }))
+                .filter(item => item.artist && item.album)
+                .slice(0, 50);
+
+            if (sanitizedAlbums.length === 0) {
+                return res.status(400).json({ error: 'Valid albums array with artist and album is required' });
+            }
+
+            const limit = Number.isInteger(maxAlbums) && maxAlbums > 0 ? Math.min(maxAlbums, 10) : 10;
+            const result = await localReconstructor.matchAlbums(sanitizedAlbums, {
+                maxAlbums: limit,
+                tag: typeof tag === 'string' && tag.trim() ? tag.trim().slice(0, 50) : 'music',
+            });
+            res.json({ success: true, ...result });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    /**
+     * Cancel a queued torrent on the isolated qBittorrent instance.
+     */
+    router.post('/cancel', async (req, res) => {
+        const { hash, deleteFiles } = req.body;
+        if (!hash || typeof hash !== 'string') {
+            return res.status(400).json({ error: 'hash is required' });
+        }
+        const trimmedHash = hash.trim();
+        if (!/^[a-f0-9]{40}$/i.test(trimmedHash) && !/^[a-z2-7]{32}$/i.test(trimmedHash)) {
+            return res.status(400).json({ error: 'Invalid torrent hash format' });
+        }
+        if (!localReconstructor) {
+            return res.status(500).json({ error: 'Local reconstructor not configured' });
+        }
+
+        try {
+            res.json(await localReconstructor.cancelDownload(trimmedHash, { deleteFiles: deleteFiles === true }));
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
     /**
      * Post-download MusicBrainz processor: tags newly downloaded tracks and adds them to library.
      */

@@ -22,25 +22,33 @@ class MusicBrainzClient {
     }
 
     async _getJson(url) {
-        return this.limiter.schedule(() => {
-            return new Promise((resolve, reject) => {
-                const parsedUrl = new URL(url);
-                const protocol = parsedUrl.protocol === 'http:' ? http : https;
-                const reqOptions = {
-                    hostname: parsedUrl.hostname,
-                    port: parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
-                    path: parsedUrl.pathname + parsedUrl.search,
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': this.userAgent,
-                        'Accept': 'application/json'
-                    }
-                };
+        return this.limiter.schedule(() => this._requestJson(url));
+    }
 
-                const req = protocol.request(reqOptions, (res) => {
-                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                        return resolve(this._getJson(res.headers.location));
-                    }
+    _requestJson(url, redirectsLeft = 5) {
+        return new Promise((resolve, reject) => {
+            const parsedUrl = new URL(url);
+            const protocol = parsedUrl.protocol === 'http:' ? http : https;
+            const reqOptions = {
+                hostname: parsedUrl.hostname,
+                port: parsedUrl.port || (parsedUrl.protocol === 'http:' ? 80 : 443),
+                path: parsedUrl.pathname + parsedUrl.search,
+                method: 'GET',
+                headers: {
+                    'User-Agent': this.userAgent,
+                    'Accept': 'application/json'
+                }
+            };
+
+            const req = protocol.request(reqOptions, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    // Follow redirects inline — re-scheduling through the
+                    // limiter would deadlock (the inner task can only run
+                    // after this task resolves, and vice versa).
+                    res.resume();
+                    if (redirectsLeft <= 0) return reject(new Error('Too many redirects'));
+                    return resolve(this._requestJson(res.headers.location, redirectsLeft - 1));
+                }
 
                     if (res.statusCode === 404) {
                         return resolve(null);
@@ -71,19 +79,24 @@ class MusicBrainzClient {
                 });
                 req.end();
             });
-        });
     }
 
     async downloadImage(imageUrl, targetPath) {
-        return this.limiter.schedule(() => {
-            return new Promise((resolve, reject) => {
-                const protocol = imageUrl.startsWith('https') ? https : http;
-                const req = protocol.get(imageUrl, {
-                    headers: { 'User-Agent': this.userAgent }
-                }, (res) => {
-                    if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                        return resolve(this.downloadImage(res.headers.location, targetPath));
-                    }
+        return this.limiter.schedule(() => this._requestImage(imageUrl, targetPath));
+    }
+
+    _requestImage(imageUrl, targetPath, redirectsLeft = 5) {
+        return new Promise((resolve, reject) => {
+            const protocol = imageUrl.startsWith('https') ? https : http;
+            const req = protocol.get(imageUrl, {
+                headers: { 'User-Agent': this.userAgent }
+            }, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    // Follow redirects inline (see _requestJson).
+                    res.resume();
+                    if (redirectsLeft <= 0) return reject(new Error('Too many redirects'));
+                    return resolve(this._requestImage(res.headers.location, targetPath, redirectsLeft - 1));
+                }
 
                     if (res.statusCode !== 200) {
                         return resolve({ success: false, status: res.statusCode });
@@ -110,7 +123,6 @@ class MusicBrainzClient {
                     req.destroy(new Error('Image download timeout'));
                 });
             });
-        });
     }
 
     async searchRecording({ title, artist, album }) {

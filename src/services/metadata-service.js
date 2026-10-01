@@ -52,9 +52,16 @@ class MetadataService {
             if (result) source = 'local_db';
         }
 
-        if (!result) {
-            result = await this.client.searchRecording(searchParams);
-            if (result) source = 'musicbrainz_api';
+        // Local DB matches are recording-level only (no releaseMbid /
+        // releaseGroupMbid, so no cover art can be resolved). Enrich through
+        // the remote API whenever release info is missing so artwork,
+        // album, year and track number can populate.
+        if (!result || (!result.releaseMbid && !result.releaseGroupMbid)) {
+            const remote = await this.client.searchRecording(searchParams);
+            if (remote) {
+                result = remote;
+                source = 'musicbrainz_api';
+            }
         }
 
         return {

@@ -72,7 +72,7 @@ Write-Host "Wrote isolated qBittorrent.ini configuration to $IniPath and $Profil
 # Register Scheduled Task
 $TaskName = "VaultStreaming-qBittorrent"
 $ExePath = "C:\Program Files\qBittorrent\qbittorrent.exe"
-$Arguments = "--profile `"$ProfileDir`" --webui-port=8082"
+$Arguments = "--profile=`"$ProfileDir`" --webui-port=8082"
 
 Write-Host "Registering Scheduled Task '$TaskName'..."
 $Action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
