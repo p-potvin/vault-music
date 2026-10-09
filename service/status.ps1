@@ -1,5 +1,5 @@
 # status.ps1 — check VaultMusic scheduled task status and HTTP health
-Get-ScheduledTask -TaskName 'VaultMusic' | Format-List TaskName, State, Actions
+Get-ScheduledTask -TaskName 'VaultMusic' -TaskPath '\VaultWares\' | Format-List TaskName, State, Actions
 
 $listening = netstat -ano | Select-String ':8733\s.*LISTENING'
 if ($listening) {

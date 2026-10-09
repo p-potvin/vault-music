@@ -14,7 +14,7 @@ if (-not (Test-Path -LiteralPath $ScriptPath)) {
 }
 
 # Unregister existing task if present
-Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue |
+Get-ScheduledTask -TaskName $TaskName -TaskPath '\VaultWares\' -ErrorAction SilentlyContinue |
     Unregister-ScheduledTask -Confirm:$false
 
 $argString = '--headless pwsh.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $ScriptPath + '"'
@@ -33,7 +33,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -Priority 7
 
 Register-ScheduledTask `
-    -TaskName $TaskName `
+    -TaskName $TaskName -TaskPath '\VaultWares\' `
     -Action $action `
     -Trigger $trigger `
     -Principal $principal `
