@@ -79,7 +79,7 @@ $Action = New-ScheduledTaskAction -Execute $ExePath -Argument $Arguments
 $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances Parallel -ExecutionTimeLimit (New-TimeSpan -Days 365)
 
-Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-Register-ScheduledTask -TaskName $TaskName -Action $Action -Principal $Principal -Settings $Settings -Description "Dedicated VaultStreaming isolated qBittorrent instance (Port 8082)" | Out-Null
+Unregister-ScheduledTask -TaskName $TaskName -TaskPath '\VaultWares\' -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask -TaskName $TaskName -TaskPath '\VaultWares\' -Action $Action -Principal $Principal -Settings $Settings -Description "Dedicated VaultStreaming isolated qBittorrent instance (Port 8082)" | Out-Null
 
 Write-Host "VaultStreaming qBittorrent instance configured and scheduled task registered successfully."

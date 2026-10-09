@@ -1,5 +1,5 @@
 # stop.ps1 — stop the VaultMusic scheduled task and kill listener on port 8733
-Stop-ScheduledTask -TaskName 'VaultMusic' -ErrorAction SilentlyContinue
+Stop-ScheduledTask -TaskName 'VaultMusic' -TaskPath '\VaultWares\' -ErrorAction SilentlyContinue
 
 # Reclaim port 8733
 $portOwners = (netstat -ano | Select-String ':8733\s.*LISTENING') |
@@ -11,4 +11,4 @@ foreach ($owner in $portOwners) {
 }
 
 Start-Sleep -Seconds 1
-Get-ScheduledTask -TaskName 'VaultMusic' | Format-List TaskName, State
+Get-ScheduledTask -TaskName 'VaultMusic' -TaskPath '\VaultWares\' | Format-List TaskName, State

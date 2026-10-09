@@ -18,7 +18,7 @@ if (-not (Test-Path -LiteralPath $ScriptPath)) {
     throw "Target script not found: $ScriptPath"
 }
 
-Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue |
+Get-ScheduledTask -TaskName $TaskName -TaskPath '\VaultWares\' -ErrorAction SilentlyContinue |
     Unregister-ScheduledTask -Confirm:$false
 
 $argString = '--headless pwsh.exe -NoProfile -WindowStyle Hidden -NonInteractive -ExecutionPolicy Bypass -File "' + $ScriptPath + '"'
@@ -33,7 +33,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
 
 Register-ScheduledTask `
-    -TaskName $TaskName `
+    -TaskName $TaskName -TaskPath '\VaultWares\' `
     -Action $action `
     -Trigger $trigger `
     -Principal $principal `
