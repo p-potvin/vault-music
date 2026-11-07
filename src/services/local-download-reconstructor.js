@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const { execFile } = require('child_process');
 const config = require('../config');
 
 class LocalDownloadReconstructor {
@@ -95,7 +96,35 @@ class LocalDownloadReconstructor {
         return ids;
     }
 
-    _searchIndexer(indexerId, query, { category = 3000, timeout = 25000 } = {}) {
+    _searchQbitPlugin(engine, query, { timeout = 6500 } = {}) {
+        return new Promise((resolve) => {
+            const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Administrator\\AppData\\Local';
+            const novaScript = path.join(localAppData, 'qBittorrent', 'nova3', 'nova2.py');
+            if (!fs.existsSync(novaScript)) return resolve([]);
+
+            execFile('python', [novaScript, engine, 'all', query], { timeout, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+                if (!stdout) return resolve([]);
+                const rawItems = [];
+                for (const line of stdout.split(/\r?\n/)) {
+                    const parts = line.trim().split('|');
+                    if (parts.length < 5) continue;
+                    const [link, rawName, sizeStr, seedsStr, leechStr] = parts;
+                    rawItems.push({
+                        Title: rawName.replace(/%7C/g, '|').trim(),
+                        Tracker: engine.charAt(0).toUpperCase() + engine.slice(1),
+                        Size: parseInt(sizeStr, 10) > 0 ? parseInt(sizeStr, 10) : 0,
+                        Seeders: parseInt(seedsStr, 10) > 0 ? parseInt(seedsStr, 10) : 0,
+                        Peers: parseInt(leechStr, 10) > 0 ? parseInt(leechStr, 10) : 0,
+                        MagnetUri: link.startsWith('magnet:') ? link : null,
+                        Link: !link.startsWith('magnet:') ? link : null
+                    });
+                }
+                resolve(this._processAndRankReleases(rawItems));
+            });
+        });
+    }
+
+    _searchIndexer(indexerId, query, { category = 3000, timeout = 5500 } = {}) {
         return new Promise((resolve) => {
             try {
                 const encodedQuery = encodeURIComponent(query);
@@ -133,11 +162,11 @@ class LocalDownloadReconstructor {
     }
 
     /**
-     * Search Jackett. When a tag is supplied the query is sent to just the
-     * indexers carrying that tag, stopping early once a release reaches
-     * stopAtSeeders and satisfies filter (if provided).
+     * Search Jackett. When a tag is supplied the query is sent to the indexers
+     * carrying that tag. If stopAtSeeders is null, all indexers are queried
+     * concurrently for fast response.
      */
-    async searchJackett(query, { tag = null, category = 3000, timeout = 25000, stopAtSeeders = null, filter = null } = {}) {
+    async searchJackett(query, { tag = null, category = 3000, timeout = 10000, stopAtSeeders = null, filter = null } = {}) {
         if (!query) return [];
 
         const indexers = tag ? this.resolveTaggedIndexers(tag) : [];
@@ -146,6 +175,19 @@ class LocalDownloadReconstructor {
         }
         if (!tag && indexers.length === 0) {
             return this._searchIndexer('all', query, { category, timeout });
+        }
+
+        if (stopAtSeeders === null) {
+            const resultsByIndexer = await Promise.all(
+                indexers.map(indexer => this._searchIndexer(indexer, query, { category, timeout }))
+            );
+            const merged = new Map();
+            for (const releases of resultsByIndexer) {
+                for (const release of releases) {
+                    if (!merged.has(release.title)) merged.set(release.title, release);
+                }
+            }
+            return [...merged.values()].sort((a, b) => b.score - a.score);
         }
 
         const merged = new Map();
@@ -251,6 +293,185 @@ class LocalDownloadReconstructor {
     }
 
     /**
+     * Clean and split a string into lowercase alphanumeric tokens, stripping accents.
+     */
+    _cleanTokens(str) {
+        if (!str) return [];
+        return this._normalizeKey(str)
+            .split(' ')
+            .filter(t => t.length > 0);
+    }
+
+    /**
+     * Lexical token-based matching: checks if releaseTitle contains the
+     * required targetTitle tokens (song title or album) and artist tokens.
+     */
+    _isExactReleaseMatch(releaseTitle, artist, targetTitle) {
+        if (!releaseTitle || !targetTitle) return false;
+        const normRelease = ' ' + this._normalizeKey(releaseTitle) + ' ';
+
+        // 1. Target tokens (track title or album title)
+        const allTargetTokens = this._cleanTokens(targetTitle);
+        if (allTargetTokens.length === 0) return false;
+
+        // Strip scene tag noise words that might be in target title if any
+        const filteredTarget = allTargetTokens.filter(t => !['remastered', 'deluxe', 'edition', 'version'].includes(t));
+        const tokensToMatch = filteredTarget.length > 0 ? filteredTarget : allTargetTokens;
+
+        // Match tokens against release title
+        const matchedCount = tokensToMatch.filter(t => normRelease.includes(' ' + t + ' ') || normRelease.includes(t)).length;
+        if (tokensToMatch.length <= 3) {
+            if (matchedCount !== tokensToMatch.length) return false;
+        } else {
+            // For longer titles (4+ words), require at least 75% token containment
+            if ((matchedCount / tokensToMatch.length) < 0.75) return false;
+        }
+
+        // 2. Artist tokens (if artist is provided)
+        if (artist) {
+            const allArtistTokens = this._cleanTokens(artist).filter(t => !['the', 'and', 'feat', 'ft', 'vs', 'dj'].includes(t));
+            const significantArtist = allArtistTokens.filter(t => t.length > 1);
+            const artistTokens = significantArtist.length > 0 ? significantArtist : allArtistTokens;
+
+            if (artistTokens.length > 0) {
+                const matchedArtist = artistTokens.filter(t => normRelease.includes(' ' + t + ' ') || normRelease.includes(t)).length;
+                if (matchedArtist === 0) return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Release selection algorithm:
+     * - Hard ceiling: filesize <= (trackCount * 30MB)
+     * - Route #1 (> 2 exact title matches):
+     *     Tier 1: <= (trackCount * 5MB)  -> top by seeders
+     *     Tier 2: <= (trackCount * 10MB) -> top by seeders
+     *     Tier 3: <= (trackCount * 30MB) -> top by seeders
+     * - Route #2 (<= 2 exact title matches):
+     *     Top by seeders under the 30MB/track ceiling
+     * - No match found: null
+     */
+    _selectBestRelease(releases, { artist = '', targetTitle = '', trackCount = 1 } = {}) {
+        const count = Math.max(1, parseInt(trackCount, 10) || 1);
+        const maxBytes = count * 30 * 1024 * 1024;
+        const tier1Bytes = count * 5 * 1024 * 1024;
+        const tier2Bytes = count * 10 * 1024 * 1024;
+
+        if (!Array.isArray(releases) || releases.length === 0) {
+            return {
+                bestRelease: null,
+                route: null,
+                tier: null,
+                tierLabel: 'No releases found',
+                exactMatchesCount: 0,
+                candidates: []
+            };
+        }
+
+        // Filter valid releases with links and seeders >= 1
+        const viableReleases = releases.filter(r => (r.magnetUrl || r.downloadUrl) && (r.seeders || 0) >= 1);
+
+        // Find exact lexical title/artist matches
+        const exactMatches = viableReleases.filter(r => this._isExactReleaseMatch(r.title, artist, targetTitle));
+
+        // If no exact matches passed lexical check, return null
+        if (exactMatches.length === 0) {
+            return {
+                bestRelease: null,
+                route: null,
+                tier: null,
+                tierLabel: 'No exact title match',
+                exactMatchesCount: 0,
+                candidates: viableReleases.slice(0, 5)
+            };
+        }
+
+        // Sort comparator: primary seeders descending, secondary score descending, tertiary size ascending
+        const seederSorter = (a, b) => (b.seeders || 0) - (a.seeders || 0) || (b.score || 0) - (a.score || 0) || (a.size || 0) - (b.size || 0);
+
+        if (exactMatches.length > 2) {
+            // ==========================================
+            // Route #1: Plenty of results (> 2 matches)
+            // ==========================================
+            // Tier 1: <= (trackCount * 5MB)
+            const tier1 = exactMatches.filter(r => (r.size || 0) <= tier1Bytes).sort(seederSorter);
+            if (tier1.length > 0) {
+                return {
+                    bestRelease: tier1[0],
+                    route: 1,
+                    tier: 1,
+                    tierLabel: `Tier 1 (<= ${count * 5}MB)`,
+                    exactMatchesCount: exactMatches.length,
+                    candidates: tier1.slice(0, 5)
+                };
+            }
+
+            // Tier 2: <= (trackCount * 10MB)
+            const tier2 = exactMatches.filter(r => (r.size || 0) <= tier2Bytes).sort(seederSorter);
+            if (tier2.length > 0) {
+                return {
+                    bestRelease: tier2[0],
+                    route: 1,
+                    tier: 2,
+                    tierLabel: `Tier 2 (<= ${count * 10}MB)`,
+                    exactMatchesCount: exactMatches.length,
+                    candidates: tier2.slice(0, 5)
+                };
+            }
+
+            // Tier 3: <= (trackCount * 30MB)
+            const tier3 = exactMatches.filter(r => (r.size || 0) <= maxBytes).sort(seederSorter);
+            if (tier3.length > 0) {
+                return {
+                    bestRelease: tier3[0],
+                    route: 1,
+                    tier: 3,
+                    tierLabel: `Tier 3 (<= ${count * 30}MB)`,
+                    exactMatchesCount: exactMatches.length,
+                    candidates: tier3.slice(0, 5)
+                };
+            }
+
+            // All candidates exceeded the 30MB/track hard limit
+            return {
+                bestRelease: null,
+                route: 1,
+                tier: null,
+                tierLabel: `Exceeded size ceiling (> ${count * 30}MB)`,
+                exactMatchesCount: exactMatches.length,
+                candidates: exactMatches.slice(0, 5)
+            };
+        } else {
+            // ==========================================
+            // Route #2: Few results (<= 2 matches)
+            // ==========================================
+            const eligible = exactMatches.filter(r => (r.size || 0) <= maxBytes).sort(seederSorter);
+            if (eligible.length > 0) {
+                return {
+                    bestRelease: eligible[0],
+                    route: 2,
+                    tier: null,
+                    tierLabel: `Route 2 (Few results, <= ${count * 30}MB)`,
+                    exactMatchesCount: exactMatches.length,
+                    candidates: eligible.slice(0, 5)
+                };
+            }
+
+            // Met match but exceeded maximum size
+            return {
+                bestRelease: null,
+                route: 2,
+                tier: null,
+                tierLabel: `Exceeded size ceiling (> ${count * 30}MB)`,
+                exactMatchesCount: exactMatches.length,
+                candidates: exactMatches.slice(0, 5)
+            };
+        }
+    }
+
+    /**
      * Build album-level download suggestions from a playlist, keeping only
      * albums that have at least one track missing from the library.
      */
@@ -347,10 +568,10 @@ class LocalDownloadReconstructor {
     }
 
     /**
-     * Find the best release for one album, preferring well-seeded results and
-     * relaxing the seeder threshold before giving up.
+     * Find the best release for one album, using clean queries to Jackett,
+     * lexical token matching, and tiered relaxation / few-results routing.
      */
-    async findReleaseForAlbum(artist, album, { tag = 'music', thresholds = [20, 15, 10, 5], maxQueries = 2 } = {}) {
+    async findReleaseForAlbum(artist, album, { tag = 'music', trackCount = 10, thresholds = [20, 15, 10, 5], maxQueries = 2 } = {}) {
         const primary = [artist, album].filter(Boolean).join(' ').trim();
         const queries = [];
         if (primary) queries.push(primary);
@@ -358,52 +579,85 @@ class LocalDownloadReconstructor {
 
         const seen = new Map();
         let queriesUsed = 0;
-        let accepted = null;
 
         for (const query of queries.slice(0, maxQueries)) {
             queriesUsed++;
             const releases = await this.searchJackett(query, {
                 tag,
-                stopAtSeeders: thresholds[0],
-                filter: r => !r.isLossless && this._looksLikeAlbum(r.title, album)
+                timeout: 10000
             });
             for (const release of releases) {
                 if (!release.magnetUrl && !release.downloadUrl) continue;
-                if (release.isLossless) continue;
-                if (!this._looksLikeAlbum(release.title, album)) continue;
                 if (!seen.has(release.title)) seen.set(release.title, release);
             }
-            const strong = this._pickByThreshold([...seen.values()], [thresholds[0]]);
-            if (strong) { accepted = strong; break; }
+            // Check if we have a viable candidate already clearing top threshold
+            const currentSelection = this._selectBestRelease([...seen.values()], {
+                artist,
+                targetTitle: album,
+                trackCount
+            });
+            if (currentSelection.bestRelease && (currentSelection.bestRelease.seeders || 0) >= thresholds[0]) {
+                break;
+            }
         }
 
-        const allReleases = [...seen.values()];
-        const chosen = accepted || this._pickByThreshold(allReleases, thresholds);
-        const candidates = allReleases
-            .sort((a, b) => (b.seeders || 0) - (a.seeders || 0) || b.score - a.score)
-            .slice(0, 5);
+        let allReleases = [...seen.values()];
+        let selection = this._selectBestRelease(allReleases, {
+            artist,
+            targetTitle: album,
+            trackCount
+        });
+
+        // Fallback to qBittorrent search plugin (snowfl) if Jackett had no exact match
+        if (!selection.bestRelease && primary) {
+            const pluginReleases = await this._searchQbitPlugin('snowfl', primary, { timeout: 6500 });
+            for (const release of pluginReleases) {
+                if (!release.magnetUrl && !release.downloadUrl) continue;
+                if (!seen.has(release.title)) seen.set(release.title, release);
+            }
+            allReleases = [...seen.values()];
+            selection = this._selectBestRelease(allReleases, {
+                artist,
+                targetTitle: album,
+                trackCount
+            });
+        }
+        const chosen = selection.bestRelease;
+        const candidates = selection.candidates.length > 0 ? selection.candidates : allReleases.slice(0, 5);
 
         return {
             query: primary,
             queriesUsed,
             found: !!chosen,
             threshold: chosen ? this._thresholdFor(chosen.seeders || 0, thresholds) : null,
+            route: selection.route,
+            tier: selection.tier,
+            tierLabel: selection.tierLabel,
+            exactMatchesCount: selection.exactMatchesCount,
             bestRelease: chosen,
             candidates,
+            allReleases: allReleases.slice(0, 5)
         };
     }
 
     /**
-     * Match a bounded list of albums sequentially, stopping each album as soon
-     * as a release clears the seeder threshold.
+     * Match a bounded list of albums sequentially, applying the selection algorithm per album.
      */
     async matchAlbums(albums, { maxAlbums = 10, tag = 'music', thresholds } = {}) {
         const limited = (albums || []).slice(0, maxAlbums);
-        const results = [];
-        for (const album of limited) {
-            const match = await this.findReleaseForAlbum(album.artist, album.album, { tag, thresholds });
-            results.push({ ...album, ...match });
-        }
+        const results = new Array(limited.length);
+        const concurrency = 3;
+        let cursor = 0;
+        const worker = async () => {
+            while (cursor < limited.length) {
+                const idx = cursor++;
+                const album = limited[idx];
+                const trackCount = album.totalTracks || 10;
+                const match = await this.findReleaseForAlbum(album.artist, album.album, { tag, thresholds, trackCount });
+                results[idx] = { ...album, ...match };
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(concurrency, limited.length) }, () => worker()));
         const matchedCount = results.filter(r => r.found).length;
         return {
             totalAlbums: limited.length,
@@ -459,31 +713,38 @@ class LocalDownloadReconstructor {
     }
 
     /**
-     * Match all tracks from a selected playlist against Jackett.
+     * Match tracks from a selected playlist against Jackett (bounded by maxTracks).
      */
-    async matchPlaylistTracks(playlist) {
+    async matchPlaylistTracks(playlist, { maxTracks = 25 } = {}) {
         if (!playlist || !playlist.tracks) {
             return { success: false, error: 'Invalid playlist data' };
         }
 
         const matches = [];
         const storageUsage = this.getLibraryStorageUsage();
+        const limit = Number.isInteger(maxTracks) && maxTracks > 0 ? Math.min(maxTracks, 50) : 25;
+        const tracksToMatch = playlist.tracks.slice(0, limit);
 
-        for (const track of playlist.tracks) {
+        for (const track of tracksToMatch) {
             const query = `${track.artist} ${track.title}`.trim();
-            const releases = await this.searchJackett(query);
+            const releases = await this.searchJackett(query, { tag: 'music', timeout: 8000 });
 
-            let bestRelease = null;
-            if (releases.length > 0) {
-                // Find highest ranked lossy release first (lossless not allowed)
-                const lossyRelease = releases.find(r => !r.isLossless);
-                bestRelease = lossyRelease || null;
-            }
+            // Apply new selection algorithm with trackCount = 1
+            const selection = this._selectBestRelease(releases, {
+                artist: track.artist,
+                targetTitle: track.title,
+                trackCount: 1
+            });
+            const bestRelease = selection.bestRelease;
 
             matches.push({
                 track,
                 query,
                 matchFound: !!bestRelease,
+                route: selection.route,
+                tier: selection.tier,
+                tierLabel: selection.tierLabel,
+                exactMatchesCount: selection.exactMatchesCount,
                 bestRelease: bestRelease ? {
                     title: bestRelease.title,
                     tracker: bestRelease.tracker,
@@ -494,7 +755,10 @@ class LocalDownloadReconstructor {
                     isLossless: bestRelease.isLossless,
                     needsConfirmation: bestRelease.needsConfirmation,
                     magnetUrl: bestRelease.magnetUrl,
-                    downloadUrl: bestRelease.downloadUrl
+                    downloadUrl: bestRelease.downloadUrl,
+                    route: selection.route,
+                    tier: selection.tier,
+                    tierLabel: selection.tierLabel
                 } : null,
                 allReleases: releases.slice(0, 5)
             });
@@ -510,6 +774,7 @@ class LocalDownloadReconstructor {
             success: true,
             playlistName: playlist.name,
             totalTracks: playlist.tracks.length,
+            scannedTracks: tracksToMatch.length,
             matchedCount: matches.filter(m => m.matchFound).length,
             totalEstimatedMb: `${totalEstimatedMb} MB`,
             totalEstimatedGb: `${totalEstimatedGb} GB`,

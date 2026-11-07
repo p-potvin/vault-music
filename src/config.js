@@ -14,7 +14,8 @@ module.exports = {
     APPLE_MUSIC_BACKUP_DIR: process.env.APPLE_MUSIC_BACKUP_DIR || path.join(primaryMusicDir, 'AppleMusic_Backup'),
     MAX_LIBRARY_SIZE_GB: parseFloat(process.env.MAX_LIBRARY_SIZE_GB) || 35.0,
 
-    LOCAL_DB_PATH: process.env.LOCAL_DB_PATH || 'I:\\Musicbrainz\\musicbrainz_local.sqlite',
+    // vault-raggae's gateway: the MusicBrainz dump and the music catalog (src/musicbrainz/local-db.js).
+    RAGGAE_URL: process.env.RAGGAE_URL || 'http://127.0.0.1:8750',
     MUSICBRAINZ_HOST: process.env.MUSICBRAINZ_HOST || 'musicbrainz.org',
     MUSICBRAINZ_RPS: parseFloat(process.env.MUSICBRAINZ_RPS) || 1,
 

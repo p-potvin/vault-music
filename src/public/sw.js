@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vault-music-shell-v2';
+const CACHE_NAME = 'vault-music-shell-v3';
 const ASSETS = [
     '/',
     '/index.html',

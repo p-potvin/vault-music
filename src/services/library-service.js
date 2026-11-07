@@ -90,6 +90,7 @@ class LibraryService {
                             fileName: entry.name,
                             fileSize: stats.size,
                             lastModified: stats.mtime,
+                            isDownloaded: fullPath.toLowerCase().includes('\\downloads\\') || fullPath.toLowerCase().includes('/downloads/'),
                             coverPath: coverPath,
                             streamUrl: `/api/v1/stream/${trackId}`,
                             coverUrl: coverPath ? `/api/v1/art/${albumId}` : null
@@ -194,8 +195,26 @@ class LibraryService {
         return this.artists.get(name) || null;
     }
 
-    listTracks({ query = '', artist = '', album = '', page = 1, limit = 50, sort = 'title', order = 'asc' } = {}) {
-        let results = this.tracks;
+    ensureDownloadsSynced() {
+        try {
+            const dlDir = config.DOWNLOADS_DIR;
+            if (!dlDir || !fs.existsSync(dlDir) || this.isScanning) return;
+            const stat = fs.statSync(dlDir);
+            if (stat.mtimeMs > this.lastScanTime) {
+                this.scanLibrary();
+            }
+        } catch (_) {}
+    }
+
+    listTracks({ query = '', artist = '', album = '', downloaded = false, page = 1, limit = 50, sort = 'title', order = 'asc' } = {}) {
+        if (downloaded === true || downloaded === 'true') {
+            this.ensureDownloadsSynced();
+        }
+        let results = [...this.tracks];
+
+        if (downloaded === true || downloaded === 'true') {
+            results = results.filter(t => t.isDownloaded);
+        }
 
         if (query) {
             const q = query.toLowerCase().trim();
@@ -220,6 +239,11 @@ class LibraryService {
 
         // Sorting
         results.sort((a, b) => {
+            if (sort === 'lastModified') {
+                const timeA = a.lastModified ? new Date(a.lastModified).getTime() : 0;
+                const timeB = b.lastModified ? new Date(b.lastModified).getTime() : 0;
+                return order === 'desc' ? (timeB - timeA) : (timeA - timeB);
+            }
             const valA = (a[sort] || '').toString().toLowerCase();
             const valB = (b[sort] || '').toString().toLowerCase();
             return order === 'desc' ? valB.localeCompare(valA) : valA.localeCompare(valB);

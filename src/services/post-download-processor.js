@@ -14,7 +14,7 @@ class PostDownloadProcessor {
             host: config.MUSICBRAINZ_HOST,
             rps: config.MUSICBRAINZ_RPS
         });
-        this.localMbDb = new LocalMusicBrainzDb(config.LOCAL_DB_PATH);
+        this.localMbDb = new LocalMusicBrainzDb(config.RAGGAE_URL);
     }
 
     /**
@@ -55,8 +55,8 @@ class PostDownloadProcessor {
                 const artist = tags.effectiveArtist || '';
                 const album = tags.effectiveAlbum || '';
 
-                // Query local MusicBrainz first
-                let mbData = this.localMbDb.searchRecording({ title, artist, album });
+                // MusicBrainz through vault-raggae first
+                let mbData = await this.localMbDb.searchRecording({ title, artist, album });
 
                 // If not found locally, query live MusicBrainz
                 if (!mbData) {
@@ -75,7 +75,7 @@ class PostDownloadProcessor {
                         album: mbData.album || album,
                         musicbrainzId: mbData.recordingMbid || null,
                         year: mbData.releaseYear || tags.embeddedYear || null,
-                        genres: mbData.genres || tags.embeddedGenre ? [tags.embeddedGenre] : []
+                        genres: (mbData.genres && mbData.genres.length) ? mbData.genres : (tags.embeddedGenre ? [tags.embeddedGenre] : [])
                     };
 
                     // Write .nfo sidecar

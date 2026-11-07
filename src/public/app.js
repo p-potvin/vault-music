@@ -262,6 +262,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadOfflineTab();
         } else if (tabId === 'downloads') {
             loadDownloadQueue();
+            loadStorageStatus();
+            loadIndexersList();
+            if (typeof loadAppleMusicReconstructorStatus === 'function') {
+                loadAppleMusicReconstructorStatus();
+            }
         }
     };
 
@@ -300,6 +305,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             openPlaylist(state.playlistId, false);
         } else if (state.tab) {
             switchTab(state.tab, false);
+        }
+    });
+
+    window.addEventListener('hashchange', () => {
+        const hash = (window.location.hash || '').replace(/^#/, '');
+        const validTabs = ['home', 'tracks', 'artists', 'albums', 'playlists', 'offline', 'metadata', 'downloads'];
+        if (validTabs.includes(hash) && hash !== currentActiveTab) {
+            switchTab(hash, false);
         }
     });
 
@@ -584,7 +597,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let debounceTimer = null;
 
     async function loadTracksData(query = '') {
-        const url = query ? `/api/v1/tracks?query=${encodeURIComponent(query)}&limit=300` : '/api/v1/tracks?limit=300';
+        const url = query ? `/api/v1/tracks?query=${encodeURIComponent(query)}&limit=5000` : '/api/v1/tracks?limit=5000';
         const res = await fetch(url);
         const data = await res.json();
         tracks = data.tracks || [];
@@ -813,7 +826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadArtists(query = '') {
         try {
-            const url = query ? `/api/v1/artists?query=${encodeURIComponent(query)}&limit=150` : '/api/v1/artists?limit=150';
+            const url = query ? `/api/v1/artists?query=${encodeURIComponent(query)}&limit=1000` : '/api/v1/artists?limit=1000';
             const res = await fetch(url);
             const data = await res.json();
             artists = data.artists || [];
@@ -955,7 +968,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadAlbums(query = '') {
         try {
-            const url = query ? `/api/v1/albums?query=${encodeURIComponent(query)}&limit=150` : '/api/v1/albums?limit=150';
+            const url = query ? `/api/v1/albums?query=${encodeURIComponent(query)}&limit=1000` : '/api/v1/albums?limit=1000';
             const res = await fetch(url);
             const data = await res.json();
             albums = data.albums || [];
@@ -1328,6 +1341,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadOfflineTab() {
+        const torrentContainer = document.getElementById('torrent-downloads-container');
+        const torrentSummary = document.getElementById('torrent-downloads-summary');
+        if (torrentContainer) {
+            try {
+                const res = await apiFetch('/api/v1/tracks?downloaded=true&sort=lastModified&order=desc&limit=1000');
+                const data = await res.json();
+                const dlTracks = data.tracks || [];
+                const totalDlBytes = dlTracks.reduce((sum, t) => sum + (t.fileSize || 0), 0);
+                const dlMb = (totalDlBytes / (1024 * 1024)).toFixed(1);
+                if (torrentSummary) {
+                    torrentSummary.innerText = `${dlTracks.length} torrent track(s) • ${dlMb} MB`;
+                }
+                if (dlTracks.length === 0) {
+                    torrentContainer.innerHTML = `<div class="empty-state">No torrent-downloaded audio files in <code>G:\\Music\\Downloads</code> yet.</div>`;
+                } else {
+                    renderTrackList(dlTracks, torrentContainer);
+                }
+            } catch (err) {
+                torrentContainer.innerHTML = `<div class="empty-state">Failed to load torrent downloads: ${err.message}</div>`;
+            }
+        }
+
         if (!window.VaultOfflineDB) return;
         const offlineTracks = await window.VaultOfflineDB.getAllTracks();
 
@@ -1338,11 +1373,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         offlineTracksContainer.innerHTML = '';
         if (offlineTracks.length === 0) {
-            offlineTracksContainer.innerHTML = `<div class="empty-state">No songs saved offline yet. Tap the Save button on any song!</div>`;
+            offlineTracksContainer.innerHTML = `<div class="empty-state">No songs saved in browser cache yet. Tap the Save button on any song for airplane mode!</div>`;
             return;
         }
 
-        offlineTracks.forEach((t, i) => {
+        offlineTracks.forEach((t) => {
             const row = document.createElement('div');
             row.className = 'track-row';
             row.innerHTML = `
@@ -1375,6 +1410,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Wire up Scan Library buttons (#btn-desktop-scan, #btn-phone-scan, #btn-rescan-downloads)
+    const btnDesktopScan = document.getElementById('btn-desktop-scan');
+    const btnPhoneScan = document.getElementById('btn-phone-scan');
+    const btnRescanDownloads = document.getElementById('btn-rescan-downloads');
+
+    async function triggerLibraryScan() {
+        const desktopLabel = btnDesktopScan ? btnDesktopScan.querySelector('span') : null;
+        const rescanLabel = document.getElementById('btn-rescan-downloads-text');
+
+        if (btnDesktopScan) btnDesktopScan.disabled = true;
+        if (btnPhoneScan) btnPhoneScan.disabled = true;
+        if (btnRescanDownloads) btnRescanDownloads.disabled = true;
+        if (desktopLabel) desktopLabel.innerText = 'Scanning...';
+        if (rescanLabel) rescanLabel.innerText = 'Scanning...';
+
+        try {
+            const res = await apiFetch('/api/v1/scan', { method: 'POST' });
+            const data = await res.json();
+            await loadTracksData();
+            await loadStorageStatus();
+
+            if (currentActiveTab === 'tracks') await loadTracks(phoneSearchInput ? phoneSearchInput.value : '');
+            else if (currentActiveTab === 'artists') await loadArtists(artistsSearchInput ? artistsSearchInput.value : '');
+            else if (currentActiveTab === 'albums') await loadAlbums(albumsSearchInput ? albumsSearchInput.value : '');
+            else if (currentActiveTab === 'home') await loadHomeTab();
+            else if (currentActiveTab === 'offline') await loadOfflineTab();
+
+            const total = data.totalTracks || tracks.length;
+            if (desktopLabel) desktopLabel.innerText = `✓ ${total} Songs`;
+            if (rescanLabel) rescanLabel.innerText = `✓ Scanned (${total})`;
+            setTimeout(() => {
+                if (desktopLabel) desktopLabel.innerText = 'Scan Library';
+                if (rescanLabel) rescanLabel.innerText = 'Rescan Downloads';
+            }, 2500);
+        } catch (err) {
+            alert('Library scan failed: ' + err.message);
+            if (desktopLabel) desktopLabel.innerText = 'Scan Library';
+            if (rescanLabel) rescanLabel.innerText = 'Rescan Downloads';
+        } finally {
+            if (btnDesktopScan) btnDesktopScan.disabled = false;
+            if (btnPhoneScan) btnPhoneScan.disabled = false;
+            if (btnRescanDownloads) btnRescanDownloads.disabled = false;
+        }
+    }
+
+    if (btnDesktopScan) btnDesktopScan.addEventListener('click', triggerLibraryScan);
+    if (btnPhoneScan) btnPhoneScan.addEventListener('click', triggerLibraryScan);
+    if (btnRescanDownloads) btnRescanDownloads.addEventListener('click', triggerLibraryScan);
     // =========================================================================
     // Core Audio Player & Media Session Engine
     // =========================================================================
@@ -1726,21 +1809,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnRefreshQueue) btnRefreshQueue.addEventListener('click', loadDownloadQueue);
 
     // =========================================================================
-    // Apple Music Offline Reconstructor & 35 GB Storage Guardrail Engine
+    // Apple Music Playlist Reconstructor & Auto-Matched Missing Albums
     // =========================================================================
 
     const btnScanAppleMusic = document.getElementById('btn-scan-apple-music');
     const selectApplePlaylist = document.getElementById('select-apple-playlist');
-    const btnMatchPlaylist = document.getElementById('btn-match-playlist');
-    const reconstructorResultsContainer = document.getElementById('reconstructor-results-container');
-    const reconstructorMatchesTbody = document.getElementById('reconstructor-matches-tbody');
-    const matchCountText = document.getElementById('match-count-text');
-    const btnQueueReconstruction = document.getElementById('btn-queue-reconstruction');
     const btnPostProcessMetadata = document.getElementById('btn-post-process-metadata');
     const snapshotStatusBanner = document.getElementById('snapshot-status-banner');
+    const btnFindMissing = document.getElementById('btn-find-missing');
+    const suggestionsPanel = document.getElementById('suggestions-panel');
+    const suggestionsList = document.getElementById('suggestions-list');
+    const suggestionsSummary = document.getElementById('suggestions-summary');
+    const suggestionsMeta = document.getElementById('suggestions-meta');
+    const btnFindReleases = document.getElementById('btn-find-releases');
+    const btnQueueSuggestions = document.getElementById('btn-queue-suggestions');
 
     let discoveredPlaylists = [];
-    let currentPlaylistMatches = [];
+    let suggestedAlbums = [];
+    let matchedAlbums = [];
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
     async function loadStorageStatus() {
         try {
@@ -1764,167 +1860,93 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (_) {}
     }
 
-    if (btnScanAppleMusic) {
-        btnScanAppleMusic.addEventListener('click', async () => {
-            btnScanAppleMusic.disabled = true;
-            document.getElementById('btn-scan-apple-text').innerText = 'Cloning & Scanning...';
+    function populatePlaylistDropdown(playlistsList) {
+        if (!selectApplePlaylist) return;
+        selectApplePlaylist.innerHTML = '';
+        if (!Array.isArray(playlistsList) || playlistsList.length === 0) {
+            selectApplePlaylist.innerHTML = '<option value="">No playlists found in backup</option>';
+            if (btnFindMissing) btnFindMissing.disabled = true;
+            return;
+        }
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.innerText = `Choose a playlist to find & match missing albums... (${playlistsList.length} available)`;
+        selectApplePlaylist.appendChild(placeholder);
 
-            try {
-                const res = await apiFetch('/api/v1/downloads/apple-music-local/backup-and-scan', { method: 'POST' });
-                const data = await res.json();
-                discoveredPlaylists = data.playlists || [];
+        playlistsList.forEach((pl, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx;
+            opt.innerText = `${pl.name} (${pl.trackCount} tracks)`;
+            selectApplePlaylist.appendChild(opt);
+        });
+        if (btnFindMissing) btnFindMissing.disabled = true;
+    }
 
-                selectApplePlaylist.innerHTML = '';
-                if (discoveredPlaylists.length === 0) {
-                    selectApplePlaylist.innerHTML = '<option value="">No playlists found in backup</option>';
-                    btnMatchPlaylist.disabled = true;
-                } else {
-                    discoveredPlaylists.forEach((pl, idx) => {
-                        const opt = document.createElement('option');
-                        opt.value = idx;
-                        opt.innerText = `${pl.name} (${pl.trackCount} tracks)`;
-                        selectApplePlaylist.appendChild(opt);
-                    });
-                    btnMatchPlaylist.disabled = false;
-                }
-
-                const findMissingBtn = document.getElementById('btn-find-missing');
-                if (findMissingBtn) findMissingBtn.disabled = discoveredPlaylists.length === 0;
-                const suggestionsPanelEl = document.getElementById('suggestions-panel');
-                if (suggestionsPanelEl) suggestionsPanelEl.style.display = 'none';
+    async function loadAppleMusicReconstructorStatus() {
+        if (!selectApplePlaylist) return;
+        try {
+            const res = await apiFetch('/api/v1/downloads/apple-music-local/playlists');
+            const data = await res.json();
+            if (data.hasSnapshot && Array.isArray(data.playlists) && data.playlists.length > 0) {
+                discoveredPlaylists = data.playlists;
+                populatePlaylistDropdown(discoveredPlaylists);
 
                 if (data.snapshot && data.snapshot.manifest) {
-                    snapshotStatusBanner.innerHTML = `<span>✓ Safe Snapshot verified: <code>${data.snapshot.manifest.backupDir}</code> (${data.snapshot.manifest.fileCount} files, ${data.snapshot.manifest.formattedSize})</span>`;
+                    snapshotStatusBanner.innerHTML = `<span>✓ Safe Snapshot verified: <code>${escapeHtml(data.snapshot.manifest.backupDir)}</code> (${data.snapshot.manifest.fileCount} files, ${escapeHtml(data.snapshot.manifest.formattedSize)})</span>`;
+                } else if (data.snapshot) {
+                    snapshotStatusBanner.innerHTML = `<span>✓ Safe Snapshot verified: <code>${escapeHtml(data.snapshot.backupDir || 'G:\\Music\\AppleMusic_Backup')}</code> (${data.snapshot.indexedFiles || 0} files)</span>`;
                 }
-            } catch (err) {
-                alert('Failed to scan Apple Music: ' + err.message);
-            } finally {
-                btnScanAppleMusic.disabled = false;
-                document.getElementById('btn-scan-apple-text').innerText = '🛡️ Safe Clone & Scan';
             }
-        });
+        } catch (_) {}
     }
 
-    if (btnMatchPlaylist) {
-        btnMatchPlaylist.addEventListener('click', async () => {
-            const idx = parseInt(selectApplePlaylist.value, 10);
-            const playlist = discoveredPlaylists[idx];
-            if (!playlist) return;
-
-            btnMatchPlaylist.disabled = true;
-            btnMatchPlaylist.innerHTML = `<span>Searching Jackett (128k/192k)...</span>`;
-
-            try {
-                const res = await apiFetch('/api/v1/downloads/apple-music-local/match-playlist', {
-                    method: 'POST',
-                    body: JSON.stringify({ playlist })
-                });
-                const data = await res.json();
-                currentPlaylistMatches = data.matches || [];
-
-                matchCountText.innerText = `${data.matchedCount}/${data.totalTracks}`;
-                reconstructorMatchesTbody.innerHTML = '';
-
-                currentPlaylistMatches.forEach((m, mIdx) => {
-                    const tr = document.createElement('tr');
-                    const trackName = `${m.track.artist} - ${m.track.title}`;
-                    
-                    if (m.matchFound && m.bestRelease) {
-                        const r = m.bestRelease;
-                        let badgeClass = 'q-badge lossy';
-                        if (r.quality.includes('128') || r.quality.includes('192')) badgeClass = 'q-badge low';
-
-                        tr.innerHTML = `
-                            <td><strong>${trackName}</strong></td>
-                            <td title="${r.title}">${r.title.substring(0, 36)}... <small>(${r.tracker})</small></td>
-                            <td><span class="${badgeClass}">${r.quality}</span></td>
-                            <td>${r.formattedSize}</td>
-                            <td>${confirmCell}</td>
-                        `;
-                    } else {
-                        tr.innerHTML = `
-                            <td><strong>${trackName}</strong></td>
-                            <td colspan="4" style="color: var(--ctp-peach); font-style: italic;">No match found on indexers</td>
-                        `;
-                    }
-                    reconstructorMatchesTbody.appendChild(tr);
-                });
-
-                reconstructorResultsContainer.style.display = 'block';
-            } catch (err) {
-                alert('Failed to match playlist: ' + err.message);
-            } finally {
-                btnMatchPlaylist.disabled = false;
-                btnMatchPlaylist.innerHTML = `<span>🔍 Match Releases (128k/192k)</span>`;
-            }
-        });
+    function isAlbumSelected(albumIdx) {
+        const card = suggestionsList.querySelector(`.suggestion-card[data-album-idx="${albumIdx}"]`);
+        if (!card) return false;
+        const albumCheck = card.querySelector('.suggestion-album-check');
+        return albumCheck ? albumCheck.checked : false;
     }
 
-    // =========================================================================
-    // Missing-Album Suggestions (playlist -> gap analysis -> tagged search)
-    // =========================================================================
-
-    const btnFindMissing = document.getElementById('btn-find-missing');
-    const suggestionsPanel = document.getElementById('suggestions-panel');
-    const suggestionsList = document.getElementById('suggestions-list');
-    const suggestionsSummary = document.getElementById('suggestions-summary');
-    const suggestionsMeta = document.getElementById('suggestions-meta');
-    const btnFindReleases = document.getElementById('btn-find-releases');
-    const btnQueueSuggestions = document.getElementById('btn-queue-suggestions');
-
-    let suggestedAlbums = [];
-    let matchedAlbums = [];
-
-    const albumKey = (album) => `${album.artist}||${album.album}`;
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function selectedTracksFor(album) {
-        if (!album || !Array.isArray(album.tracks)) return [];
-        return album.tracks.filter((track, index) => {
-            if (track.owned) return false;
-            const box = suggestionsList.querySelector(`.suggestion-track-check[data-album="${index}"][data-key="${CSS.escape(albumKey(album))}"]`);
-            return box ? box.checked : true;
-        });
-    }
-
-    function isAlbumSelected(albumOrMatch) {
-        const album = (albumOrMatch && Array.isArray(albumOrMatch.tracks))
-            ? albumOrMatch
-            : suggestedAlbums.find(a => albumKey(a) === albumKey(albumOrMatch));
-        if (!album) return false;
-        return selectedTracksFor(album).length > 0;
+    function updateQueueSuggestionsButton() {
+        if (!btnQueueSuggestions) return;
+        if (!matchedAlbums || matchedAlbums.length === 0) {
+            btnQueueSuggestions.disabled = true;
+            btnQueueSuggestions.innerHTML = '<span>📥 Queue Matched Albums</span>';
+            return;
+        }
+        const readyReleases = matchedAlbums.filter(m => m.found && m.bestRelease && isAlbumSelected(m.albumIdx));
+        btnQueueSuggestions.disabled = readyReleases.length === 0;
+        btnQueueSuggestions.innerHTML = `<span>📥 Queue ${readyReleases.length} Matched Album(s)</span>`;
     }
 
     function renderSuggestions(data) {
         suggestedAlbums = data.albums || [];
         matchedAlbums = [];
         suggestionsList.innerHTML = '';
-        btnQueueSuggestions.disabled = true;
         btnFindReleases.disabled = suggestedAlbums.length === 0;
+        updateQueueSuggestionsButton();
 
         suggestionsSummary.innerText = `${data.totalAlbums} album(s) · ${data.missingTracks} missing track(s)`;
-        suggestionsMeta.innerText = `Top ${data.returnedAlbums} of ${data.totalAlbums} albums with missing tracks in "${data.playlistName}". Tick the tracks you want; the whole album is downloaded.`;
+        if (suggestedAlbums.length === 0) {
+            suggestionsMeta.innerText = `All tracks in "${data.playlistName}" are already in your library!`;
+            suggestionsList.innerHTML = `<div class="empty-state">Nothing missing — every album from this playlist is already in your library.</div>`;
+            suggestionsPanel.style.display = 'block';
+            return;
+        }
+
+        suggestionsMeta.innerText = `Showing top ${data.returnedAlbums} of ${data.totalAlbums} missing albums from "${data.playlistName}". Searching indexers automatically...`;
 
         suggestedAlbums.forEach((album, albumIdx) => {
-            const key = CSS.escape(albumKey(album));
             const card = document.createElement('div');
-            card.className = 'suggestion-card';
+            card.className = 'suggestion-card selected';
+            card.dataset.albumIdx = String(albumIdx);
 
             const tracks = (album.tracks || []).map((track, trackIdx) => {
                 const checked = track.owned ? '' : 'checked';
                 const disabled = track.owned ? 'disabled' : '';
                 return `
                     <label class="suggestion-track${track.owned ? ' owned' : ''}">
-                        <input type="checkbox" class="suggestion-track-check" data-album="${trackIdx}" data-key="${key}" ${checked} ${disabled}>
+                        <input type="checkbox" class="suggestion-track-check" data-track-idx="${trackIdx}" ${checked} ${disabled}>
                         <span>${escapeHtml(track.title || '(untitled)')}${track.owned ? ' — already in library' : ''}</span>
                     </label>
                 `;
@@ -1933,13 +1955,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             card.innerHTML = `
                 <div class="suggestion-head">
                     <label class="suggestion-label">
-                        <input type="checkbox" class="suggestion-album-check" data-key="${key}" checked>
+                        <input type="checkbox" class="suggestion-album-check" data-album-idx="${albumIdx}" checked>
                         <span>${escapeHtml(album.artist || 'Unknown Artist')} — ${escapeHtml(album.album)}</span>
                     </label>
                     <span class="suggestion-count">${album.missingCount}/${album.totalTracks} missing</span>
                 </div>
                 <div class="suggestion-tracks">${tracks}</div>
-                <div class="suggestion-release" data-key="${key}"></div>
+                <div class="suggestion-release" data-album-idx="${albumIdx}">⏳ Searching indexers for best seeded release...</div>
             `;
             suggestionsList.appendChild(card);
 
@@ -1949,6 +1971,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     box.checked = albumCheck.checked;
                 });
                 card.classList.toggle('selected', albumCheck.checked);
+                updateQueueSuggestionsButton();
             });
 
             card.querySelectorAll('.suggestion-track-check').forEach(box => {
@@ -1956,92 +1979,156 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const any = [...card.querySelectorAll('.suggestion-track-check:not([disabled])')].some(b => b.checked);
                     albumCheck.checked = any;
                     card.classList.toggle('selected', any);
+                    updateQueueSuggestionsButton();
                 });
             });
-
-            card.classList.add('selected');
-            card.dataset.key = key;
-            card.dataset.albumIdx = String(albumIdx);
         });
 
         suggestionsPanel.style.display = 'block';
     }
 
-    if (btnFindMissing) {
-        btnFindMissing.addEventListener('click', async () => {
-            const idx = parseInt(selectApplePlaylist.value, 10);
-            const playlist = discoveredPlaylists[idx];
-            if (!playlist) return;
-
-            btnFindMissing.disabled = true;
-            btnFindMissing.innerHTML = '<span>Analysing library gaps...</span>';
-
-            try {
-                const res = await apiFetch('/api/v1/downloads/apple-music-local/suggestions', {
-                    method: 'POST',
-                    body: JSON.stringify({ playlist, maxAlbums: 10 })
+    async function searchReleasesForSelectedAlbums() {
+        const albumsToSearch = [];
+        suggestedAlbums.forEach((album, idx) => {
+            if (isAlbumSelected(idx)) {
+                albumsToSearch.push({
+                    artist: album.artist,
+                    album: album.album,
+                    totalTracks: album.totalTracks || (album.tracks ? album.tracks.length : 10),
+                    albumIdx: idx
                 });
-                renderSuggestions(await res.json());
-            } catch (err) {
-                alert('Failed to build suggestions: ' + err.message);
-            } finally {
-                btnFindMissing.disabled = false;
-                btnFindMissing.innerHTML = '<span>🧩 Find Missing Albums</span>';
             }
+        });
+
+        if (albumsToSearch.length === 0) return;
+
+        if (btnFindReleases) {
+            btnFindReleases.disabled = true;
+            btnFindReleases.innerHTML = `<span>🔎 Searching (${albumsToSearch.length})...</span>`;
+        }
+        albumsToSearch.forEach(a => {
+            const card = suggestionsList.querySelector(`.suggestion-card[data-album-idx="${a.albumIdx}"]`);
+            const slot = card ? card.querySelector('.suggestion-release') : null;
+            if (slot) {
+                slot.className = 'suggestion-release';
+                slot.innerText = '⏳ Searching Jackett & plugins for best seeded release...';
+            }
+        });
+
+        try {
+            const res = await apiFetch('/api/v1/downloads/apple-music-local/match-albums', {
+                method: 'POST',
+                body: JSON.stringify({ albums: albumsToSearch, maxAlbums: 10, tag: 'music' })
+            });
+            const data = await res.json();
+            matchedAlbums = data.results || [];
+
+            matchedAlbums.forEach(match => {
+                const card = suggestionsList.querySelector(`.suggestion-card[data-album-idx="${match.albumIdx}"]`);
+                if (!card) return;
+                const slot = card.querySelector('.suggestion-release');
+                if (!match.found || !match.bestRelease) {
+                    slot.className = 'suggestion-release missing-release';
+                    slot.innerHTML = `No seeded release found (${escapeHtml(match.tierLabel || 'no match')})`;
+                    return;
+                }
+                const release = match.bestRelease;
+                let badge = 'standard';
+                if (match.tier === 1 || release.quality.includes('128') || release.quality.includes('192')) badge = 'low';
+                else if (match.tier === 3 || release.isLossless) badge = 'lossless';
+
+                const tierText = match.tierLabel || release.quality;
+                slot.className = 'suggestion-release';
+                slot.innerHTML = `
+                    <span class="suggestion-badge ${badge}">${escapeHtml(tierText)}</span>
+                    <strong>▲ ${Number(release.seeders) || 0} seeds</strong> · ${escapeHtml(release.formattedSize)} · ${escapeHtml(release.tracker)}
+                    <div title="${escapeHtml(release.title)}">${escapeHtml(release.title)}</div>
+                `;
+            });
+
+            updateQueueSuggestionsButton();
+            suggestionsMeta.innerText = `Auto-matched ${data.matchedCount} of ${data.totalAlbums} missing album(s). Uncheck any you don't want, then click Queue.`;
+        } catch (err) {
+            suggestionsMeta.innerText = 'Release search failed: ' + err.message;
+        } finally {
+            if (btnFindReleases) {
+                btnFindReleases.disabled = false;
+                btnFindReleases.innerHTML = '<span>🔎 Re-search Checked</span>';
+            }
+        }
+    }
+
+    async function runPlaylistAlbumFlow() {
+        const idx = parseInt(selectApplePlaylist.value, 10);
+        const playlist = discoveredPlaylists[idx];
+        if (!playlist) return;
+
+        if (btnFindMissing) {
+            btnFindMissing.disabled = true;
+            btnFindMissing.innerHTML = '<span>⏳ Matching...</span>';
+        }
+
+        try {
+            const res = await apiFetch('/api/v1/downloads/apple-music-local/suggestions', {
+                method: 'POST',
+                body: JSON.stringify({ playlist, maxAlbums: 10 })
+            });
+            const sugData = await res.json();
+            renderSuggestions(sugData);
+            if (sugData.albums && sugData.albums.length > 0) {
+                await searchReleasesForSelectedAlbums();
+            }
+        } catch (err) {
+            alert('Failed to analyse playlist: ' + err.message);
+        } finally {
+            if (btnFindMissing) {
+                btnFindMissing.disabled = false;
+                btnFindMissing.innerHTML = '<span>🔄 Match Playlist</span>';
+            }
+        }
+    }
+
+    if (selectApplePlaylist) {
+        selectApplePlaylist.addEventListener('change', () => {
+            const val = selectApplePlaylist.value;
+            const valid = val !== '' && !isNaN(parseInt(val, 10)) && !!discoveredPlaylists[parseInt(val, 10)];
+            if (btnFindMissing) btnFindMissing.disabled = !valid;
+            if (!valid) {
+                if (suggestionsPanel) suggestionsPanel.style.display = 'none';
+                return;
+            }
+            runPlaylistAlbumFlow();
         });
     }
 
+    if (btnFindMissing) {
+        btnFindMissing.addEventListener('click', runPlaylistAlbumFlow);
+    }
+
     if (btnFindReleases) {
-        btnFindReleases.addEventListener('click', async () => {
-            const albums = suggestedAlbums
-                .filter(isAlbumSelected)
-                .slice(0, 10)
-                .map(album => ({ artist: album.artist, album: album.album }));
+        btnFindReleases.addEventListener('click', searchReleasesForSelectedAlbums);
+    }
 
-            if (albums.length === 0) {
-                alert('Tick at least one album or track first.');
-                return;
-            }
-
-            btnFindReleases.disabled = true;
-            btnFindReleases.innerHTML = `<span>Searching (${albums.length})...</span>`;
+    if (btnScanAppleMusic) {
+        btnScanAppleMusic.addEventListener('click', async () => {
+            btnScanAppleMusic.disabled = true;
+            document.getElementById('btn-scan-apple-text').innerText = 'Refreshing Snapshot...';
 
             try {
-                const res = await apiFetch('/api/v1/downloads/apple-music-local/match-albums', {
-                    method: 'POST',
-                    body: JSON.stringify({ albums, maxAlbums: 10, tag: 'music' })
-                });
+                const res = await apiFetch('/api/v1/downloads/apple-music-local/backup-and-scan', { method: 'POST' });
                 const data = await res.json();
-                matchedAlbums = data.results || [];
+                discoveredPlaylists = data.playlists || [];
+                populatePlaylistDropdown(discoveredPlaylists);
+                if (suggestionsPanel) suggestionsPanel.style.display = 'none';
 
-                matchedAlbums.forEach(match => {
-                    const card = suggestionsList.querySelector(`.suggestion-card[data-key="${CSS.escape(albumKey(match))}"]`);
-                    if (!card) return;
-                    const slot = card.querySelector('.suggestion-release');
-                    if (!match.found) {
-                        slot.className = 'suggestion-release missing-release';
-                        slot.innerHTML = `No release found (${match.queriesUsed || 0} quer${(match.queriesUsed || 0) === 1 ? 'y' : 'ies'})`;
-                        return;
-                    }
-                    const release = match.bestRelease;
-                    let badge = 'standard';
-                    if (release.quality.includes('128') || release.quality.includes('192')) badge = 'low';
-                    else if (release.isLossless) return;
-                    slot.className = 'suggestion-release';
-                    slot.innerHTML = `
-                        <span class="suggestion-badge ${badge}">${escapeHtml(release.quality)}</span>
-                        ${Number(release.seeders) || 0} seeders · ${escapeHtml(release.formattedSize)} · ${escapeHtml(release.tracker)}
-                        <div title="${escapeHtml(release.title)}">${escapeHtml(release.title)}</div>
-                    `;
-                });
-
-                btnQueueSuggestions.disabled = matchedAlbums.every(m => !m.found);
-                suggestionsMeta.innerText = `Matched ${data.matchedCount}/${data.totalAlbums} albums using ${data.queriesUsed} tagged Jackett queries.`;
+                if (data.snapshot && data.snapshot.manifest) {
+                    snapshotStatusBanner.innerHTML = `<span>✓ Safe Snapshot verified: <code>${escapeHtml(data.snapshot.manifest.backupDir)}</code> (${data.snapshot.manifest.fileCount} files, ${escapeHtml(data.snapshot.manifest.formattedSize)})</span>`;
+                }
             } catch (err) {
-                alert('Release search failed: ' + err.message);
+                alert('Failed to scan Apple Music: ' + err.message);
             } finally {
-                btnFindReleases.disabled = false;
-                btnFindReleases.innerHTML = '<span>🔎 Find Releases (10)</span>';
+                btnScanAppleMusic.disabled = false;
+                document.getElementById('btn-scan-apple-text').innerText = '🛡️ Refresh Snapshot';
             }
         });
     }
@@ -2049,11 +2136,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnQueueSuggestions) {
         btnQueueSuggestions.addEventListener('click', async () => {
             const releases = matchedAlbums
-                .filter(match => match.found && match.bestRelease && !match.bestRelease.isLossless && isAlbumSelected(match))
+                .filter(match => match.found && match.bestRelease && isAlbumSelected(match.albumIdx))
                 .map(match => match.bestRelease);
 
             if (releases.length === 0) {
-                alert('Nothing to queue — find releases for at least one selected album.');
+                alert('Nothing ready to queue — ensure at least one checked album has a matched release.');
                 return;
             }
 
@@ -2063,60 +2150,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await apiFetch('/api/v1/downloads/apple-music-local/queue-download', {
                     method: 'POST',
-                    body: JSON.stringify({ releases, allowLossless: false })
+                    body: JSON.stringify({ releases, allowLossless: true })
                 });
                 const data = await res.json();
-                alert(`Queued ${data.successCount} of ${data.total} album release(s).`);
+                suggestionsMeta.innerText = `✓ Queued ${data.successCount} of ${data.total} album release(s) to isolated qBittorrent.`;
                 await loadDownloadQueue();
                 await loadStorageStatus();
             } catch (err) {
                 alert('Queue error: ' + err.message);
             } finally {
                 btnQueueSuggestions.disabled = false;
-                btnQueueSuggestions.innerHTML = '<span>📥 Queue Selected</span>';
-            }
-        });
-    }
-
-    if (btnQueueReconstruction) {
-        btnQueueReconstruction.addEventListener('click', async () => {
-            if (!currentPlaylistMatches || currentPlaylistMatches.length === 0) return;
-
-            const releasesToQueue = [];
-
-            currentPlaylistMatches.forEach((m) => {
-                if (m.matchFound && m.bestRelease) {
-                    releasesToQueue.push(m.bestRelease);
-                }
-            });
-
-            if (releasesToQueue.length === 0) {
-                alert('No releases ready to queue.');
-                return;
-            }
-
-            btnQueueReconstruction.disabled = true;
-            btnQueueReconstruction.innerHTML = `<span>Queueing (${releasesToQueue.length})...</span>`;
-
-            try {
-                const res = await apiFetch('/api/v1/downloads/apple-music-local/queue-download', {
-                    method: 'POST',
-                    body: JSON.stringify({ releases: releasesToQueue, allowLossless: false })
-                });
-                const data = await res.json();
-
-                if (data.blockedCount > 0) {
-                    alert(`⚠️ Queued ${data.successCount} releases. ${data.blockedCount} were blocked by guardrails or confirmation.`);
-                } else {
-                    alert(`✓ Successfully queued ${data.successCount} releases to local qBittorrent!`);
-                }
-                await loadDownloadQueue();
-                await loadStorageStatus();
-            } catch (err) {
-                alert('Queue error: ' + err.message);
-            } finally {
-                btnQueueReconstruction.disabled = false;
-                btnQueueReconstruction.innerHTML = `<span>📥 Queue to qBittorrent</span>`;
+                updateQueueSuggestionsButton();
             }
         });
     }
@@ -2140,11 +2184,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-
     // Initial App Load
     await loadCurrentProfile();
     await loadIndexersList();
     await loadStorageStatus();
-    await loadHomeTab();
+    await loadAppleMusicReconstructorStatus();
+
+    const initialHash = (window.location.hash || '').replace(/^#/, '');
+    const validTabs = ['home', 'tracks', 'artists', 'albums', 'playlists', 'offline', 'metadata', 'downloads'];
+    if (validTabs.includes(initialHash)) {
+        switchTab(initialHash, false);
+    } else {
+        await loadHomeTab();
+    }
 });
 

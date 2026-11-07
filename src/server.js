@@ -23,8 +23,8 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Range', 'Authorization', 'x-vw-token', 'x-device-id']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const { AppleMusicLocalService } = require('./services/apple-music-local-service');
 const { LocalDownloadReconstructor } = require('./services/local-download-reconstructor');
@@ -34,7 +34,7 @@ const { PostDownloadProcessor } = require('./services/post-download-processor');
 const libraryService = new LibraryService(config.MUSIC_DIR, config.MUSIC_DIRS);
 const profileService = new ProfileService();
 const metadataService = new MetadataService({
-    localDbPath: config.LOCAL_DB_PATH,
+    raggaeUrl: config.RAGGAE_URL,
     host: config.MUSICBRAINZ_HOST,
     rps: config.MUSICBRAINZ_RPS
 });
@@ -123,7 +123,7 @@ if (require.main === module) {
         console.log(` Tailnet Gateway  : https://music.vaultwares.ca`);
         console.log(` OpenAPI / Docs   : http://${config.HOST}:${config.PORT}/docs`);
         console.log(` Music Directory  : ${config.MUSIC_DIR}`);
-        console.log(` Local MB DB      : ${metadataService.localDb.isAvailable ? '✓ Available' : '✗ Offline'} (${config.LOCAL_DB_PATH})`);
+        console.log(` Local MB DB      : ${metadataService.localDb.isAvailable ? '✓ Available' : '✗ Offline'} (vault-raggae ${config.RAGGAE_URL})`);
         console.log('======================================================================\n');
 
         // Initial scan in background

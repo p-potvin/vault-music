@@ -9,8 +9,8 @@ Internal Tailscale music server for VaultWares: stream audio over HTTP, index lo
 - **HTTP Audio Streaming**: Native byte-range audio streaming with seeking support (`HTTP 206 Partial Content`) for MP3, FLAC, M4A, WAV, OGG, Opus, and AAC.
 - **OpenAPI 3.0 & Swagger UI**: Interactive API documentation available at [`/docs`](http://localhost:8733/docs) and specification at [`/openapi.json`](http://localhost:8733/openapi.json).
 - **MusicBrainz & Native Tag Engine**:
-  - **Native Vorbis & ID3 Parser**: Direct embedded tag reading for FLAC, OGG, MP3 without external binary dependencies.
-  - **Local SQLite Engine**: Sub-millisecond offline metadata matching using a SQLite database generated from MusicBrainz TSV dumps (`I:\Musicbrainz\musicbrainz_local.sqlite`).
+  - **Native tag parser**: embedded tags from MP3 (ID3v1, ID3v2.2-2.4), M4A / MP4 (iTunes `ilst`), FLAC and Ogg / Opus (Vorbis comments), no external binaries.
+  - **MusicBrainz through vault-raggae**: recordings from the MusicBrainz dump vault-raggae owns (`POST /v1/sql/musicbrainz`, read-only) and the release from its music catalog (`/v1/catalog/search`), at `RAGGAE_URL` (default `http://127.0.0.1:8750`). musicbrainz.org is asked only when that finds no release.
   - **Cover Art Archive & Online Client**: Fallback online client with token-bucket rate limiting and automatic 503 backoff recovery.
   - **NFO / JSON Generation**: Serializes standard Kodi/Jellyfin/Plex `album.nfo`, `artist.nfo`, and `album.json`.
 - **Search & Download Pipeline**:

@@ -159,10 +159,34 @@ function createDownloadsRouter(downloadService, options = {}) {
     });
 
     /**
+     * Get existing snapshot status and scanned Apple Music playlists.
+     */
+    router.get('/apple-music-local/playlists', async (req, res) => {
+        if (!appleMusicLocalService) {
+            return res.status(500).json({ error: 'Apple Music Local Service not configured' });
+        }
+        try {
+            const snapshotStatus = appleMusicLocalService.getSnapshotStatus();
+            if (!snapshotStatus.hasSnapshot) {
+                return res.json({ hasSnapshot: false, playlists: [], totalPlaylists: 0 });
+            }
+            const scanResult = await appleMusicLocalService.scanSnapshotPlaylists();
+            res.json({
+                hasSnapshot: true,
+                snapshot: snapshotStatus,
+                playlists: scanResult.playlists || [],
+                totalPlaylists: scanResult.totalPlaylists || 0
+            });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    /**
      * Match a single Apple Music playlist against Jackett with low-quality priority.
      */
     router.post('/apple-music-local/match-playlist', async (req, res) => {
-        const { playlist } = req.body;
+        const { playlist, maxTracks } = req.body;
         if (!playlist) {
             return res.status(400).json({ error: 'Playlist object is required' });
         }
@@ -171,7 +195,8 @@ function createDownloadsRouter(downloadService, options = {}) {
         }
 
         try {
-            const matchResult = await localReconstructor.matchPlaylistTracks(playlist);
+            const limit = Number.isInteger(maxTracks) && maxTracks > 0 ? Math.min(maxTracks, 50) : 25;
+            const matchResult = await localReconstructor.matchPlaylistTracks(playlist, { maxTracks: limit });
             res.json(matchResult);
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -267,6 +292,8 @@ function createDownloadsRouter(downloadService, options = {}) {
                 .map(item => ({
                     artist: String(item.artist || '').trim().slice(0, 200),
                     album: String(item.album || '').trim().slice(0, 200),
+                    totalTracks: Number.isInteger(item.totalTracks) && item.totalTracks > 0 ? item.totalTracks : 10,
+                    albumIdx: Number.isInteger(item.albumIdx) ? item.albumIdx : null,
                 }))
                 .filter(item => item.artist && item.album)
                 .slice(0, 50);
