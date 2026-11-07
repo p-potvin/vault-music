@@ -2055,6 +2055,105 @@ body {
     color: var(--ctp-mauve);
 }
 
+.reconstructor-playlist-bar {
+    margin-bottom: 14px;
+}
+
+.reconstructor-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vwsq-console-text-dim);
+    margin-bottom: 6px;
+}
+
+.reconstructor-select-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.reconstructor-modes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.reconstructor-mode-card {
+    background: var(--vwsq-console-sunken);
+    border: 1px solid var(--vwsq-console-border);
+    border-radius: var(--vwsq-radius-md);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    transition: border-color 0.2s ease;
+}
+
+.reconstructor-mode-card:hover {
+    border-color: rgba(203, 166, 247, 0.35);
+}
+
+.reconstructor-mode-card.mode-recommended {
+    border-color: rgba(203, 166, 247, 0.4);
+    background: rgba(203, 166, 247, 0.04);
+}
+
+.mode-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mode-title-badge {
+    align-self: flex-start;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(137, 180, 250, 0.15);
+    color: var(--ctp-blue);
+    border: 1px solid rgba(137, 180, 250, 0.3);
+}
+
+.mode-title-badge.recommended-badge {
+    background: rgba(166, 227, 161, 0.15);
+    color: var(--ctp-green);
+    border: 1px solid rgba(166, 227, 161, 0.3);
+}
+
+.mode-title-text strong {
+    font-size: 14px;
+    color: var(--vwsq-console-text-bright);
+    display: block;
+}
+
+.mode-title-text p {
+    font-size: 12px;
+    color: var(--vwsq-console-text-dim);
+    margin: 4px 0 0 0;
+    line-height: 1.4;
+}
+
+.mode-action-btn {
+    align-self: stretch;
+    justify-content: center;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 768px) {
+    .reconstructor-modes-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .reconstructor-controls-row {
     display: flex;
     gap: 12px;

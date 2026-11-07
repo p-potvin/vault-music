@@ -27,79 +27,61 @@ function findChromium() {
     await page.goto('http://localhost:8733', { waitUntil: 'networkidle' });
     console.log('1. loaded:', await page.title());
 
+    // 1. Test Scan Library button (#btn-desktop-scan)
+    await page.click('#btn-desktop-scan');
+    await page.waitForFunction(() => {
+        const text = document.querySelector('#btn-desktop-scan span')?.textContent || '';
+        return text.includes('✓') && text.includes('Songs');
+    }, { timeout: 15000 });
+    console.log('2. Scan Library button result:', (await page.textContent('#btn-desktop-scan span')).trim());
+
+    // 2. Test Downloaded tab (#tab-offline) shows torrent-downloaded files
+    await page.click('.nav-btn[data-tab="offline"]');
+    await page.waitForSelector('#tab-offline', { state: 'visible' });
+    await page.waitForFunction(() => {
+        const rows = document.querySelectorAll('#torrent-downloads-container .track-row');
+        return rows.length > 0;
+    }, { timeout: 15000 });
+    const dlSummary = (await page.textContent('#torrent-downloads-summary')).trim();
+    const dlCount = await page.$$eval('#torrent-downloads-container .track-row', els => els.length);
+    console.log('3. Downloaded tab torrent tracks:', dlCount, '| summary:', dlSummary);
+
+    // 3. Test Songs tab shows full library (> 1200 songs, no 300-song cap)
+    await page.click('.nav-btn[data-tab="tracks"]');
+    await page.waitForSelector('#tab-tracks', { state: 'visible' });
+    await page.waitForFunction(() => document.querySelectorAll('#tracks-container .track-row').length > 1000, { timeout: 15000 });
+    const songsCount = await page.$$eval('#tracks-container .track-row', els => els.length);
+    console.log('4. Songs tab rendered rows:', songsCount);
+
+    // 4. Test Search & Download tab: simplified Missing Album flow auto-runs on playlist selection
     await page.click('.nav-btn[data-tab="downloads"]');
     await page.waitForSelector('#tab-downloads', { state: 'visible' });
-    console.log('2. downloads tab visible');
+    const modeAGone = (await page.$('#reconstructor-results-container')) === null;
+    console.log('5. Mode A table removed:', modeAGone);
 
-    const panelBefore = await page.isVisible('#suggestions-panel');
-    console.log('3. suggestions panel hidden initially:', panelBefore === false);
-
-    console.log('4. scan button:', (await page.textContent('#btn-scan-apple-text')).trim());
-    await page.click('#btn-scan-apple-music');
-    await page.waitForFunction(() => document.querySelectorAll('#select-apple-playlist option').length > 1, { timeout: 60000 });
-    const options = await page.$$eval('#select-apple-playlist option', els => els.length);
-    console.log('5. playlists loaded:', options - 1);
-
-    const findMissingDisabled = await page.getAttribute('#btn-find-missing', 'disabled');
-    console.log('6. find-missing enabled after scan:', findMissingDisabled === null);
-
-    // pick a playlist with gaps
+    await page.waitForFunction(() => document.querySelectorAll('#select-apple-playlist option').length > 1, { timeout: 30000 });
     const values = await page.$$eval('#select-apple-playlist option', els => els.map(e => ({ v: e.value, t: e.textContent })));
-    const target = values.find(o => /NOFX/.test(o.t)) || values[1];
+    const target = values.find(o => /Daft Punk/.test(o.t)) || values.find(o => /NOFX/.test(o.t)) || values[1];
+    console.log('6. Selecting playlist (auto-matching):', target.t.trim());
     await page.selectOption('#select-apple-playlist', target.v);
-    console.log('7. selected playlist:', target.t.trim());
 
-    await page.click('#btn-find-missing');
-    await page.waitForSelector('#suggestions-panel', { state: 'visible', timeout: 60000 });
-    await page.waitForFunction(() => document.querySelectorAll('#suggestions-list .suggestion-card').length > 0, { timeout: 60000 });
+    // Wait for auto-detection + auto-matching to complete
+    await page.waitForSelector('#suggestions-panel', { state: 'visible', timeout: 30000 });
+    await page.waitForFunction(() => {
+        const meta = document.querySelector('#suggestions-meta')?.textContent || '';
+        return meta.includes('Auto-matched') || meta.includes('already in your library');
+    }, { timeout: 60000 });
 
     const cards = await page.$$eval('#suggestions-list .suggestion-card', els => els.length);
     const summary = (await page.textContent('#suggestions-summary')).trim();
     const meta = (await page.textContent('#suggestions-meta')).trim();
-    console.log('8. suggestion cards:', cards, '| summary:', summary);
-    console.log('9. meta:', meta.slice(0, 120));
+    console.log('7. Auto-matched suggestion cards:', cards, '| summary:', summary);
+    console.log('8. Auto-match meta:', meta);
 
-    const firstCard = await page.$eval('#suggestions-list .suggestion-card', el => ({
-        title: el.querySelector('.suggestion-label span').textContent,
-        count: el.querySelector('.suggestion-count').textContent,
-        trackBoxes: el.querySelectorAll('.suggestion-track-check').length,
-        checkedBoxes: [...el.querySelectorAll('.suggestion-track-check')].filter(b => b.checked).length,
-        albumChecked: el.querySelector('.suggestion-album-check').checked,
-        selected: el.classList.contains('selected'),
-    }));
-    console.log('10. first card:', JSON.stringify(firstCard));
-
-    // untick the album and confirm track boxes follow
-    await page.click('#suggestions-list .suggestion-card .suggestion-album-check');
-    const afterUntick = await page.$eval('#suggestions-list .suggestion-card', el => ({
-        checkedBoxes: [...el.querySelectorAll('.suggestion-track-check')].filter(b => b.checked).length,
-        selected: el.classList.contains('selected'),
-    }));
-    console.log('11. after unticking album:', JSON.stringify(afterUntick));
-
-    // re-tick
-    await page.click('#suggestions-list .suggestion-card .suggestion-album-check');
-    const afterRetick = await page.$eval('#suggestions-list .suggestion-card', el => ({
-        checkedBoxes: [...el.querySelectorAll('.suggestion-track-check')].filter(b => b.checked).length,
-        selected: el.classList.contains('selected'),
-    }));
-    console.log('12. after re-ticking album:', JSON.stringify(afterRetick));
-
-    const queueDisabled = await page.getAttribute('#btn-queue-suggestions', 'disabled');
-    console.log('13. queue disabled before releases found:', queueDisabled !== null);
-
-    await page.screenshot({ path: 'suggestions-panel.png', fullPage: false });
-    console.log('14. screenshot written');
-
-    // mobile check
-    await page.setViewportSize({ width: 430, height: 900 });
-    await page.waitForTimeout(400);
-    const mobileCard = await page.$eval('#suggestions-list .suggestion-card', el => {
-        const r = el.getBoundingClientRect();
-        return { width: Math.round(r.width), left: Math.round(r.left) };
-    });
-    console.log('15. mobile card box:', JSON.stringify(mobileCard));
-    await page.screenshot({ path: 'suggestions-mobile.png', fullPage: false });
+    if (cards > 0) {
+        const firstRelease = await page.$eval('#suggestions-list .suggestion-card .suggestion-release', el => el.textContent.trim().slice(0, 100));
+        console.log('9. First card release info:', firstRelease);
+    }
 
     console.log('\nconsole errors:', errors.length ? errors : 'none');
     console.log('failed requests:', failed.length ? failed : 'none');

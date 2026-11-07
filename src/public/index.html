@@ -388,15 +388,34 @@
 
                 <!-- Tab 5: Downloaded / Offline Tab -->
                 <section id="tab-offline" class="tab-panel">
-                    <div class="ios-page-header">
-                        <h1 class="ios-large-title">Downloaded</h1>
-                        <span class="ios-sub-count" id="offline-stats-summary">0 songs • 0 MB</span>
+                    <div class="ios-page-header flex-between">
+                        <div>
+                            <h1 class="ios-large-title">Downloaded</h1>
+                            <span class="ios-sub-count" id="torrent-downloads-summary">0 torrent tracks • 0 MB</span>
+                        </div>
+                        <button id="btn-rescan-downloads" class="ios-pill-btn btn-secondary-pill" title="Rescan G:\Music\Downloads">
+                            <svg class="v-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            <span id="btn-rescan-downloads-text">Rescan Downloads</span>
+                        </button>
                     </div>
-                    <p class="ios-section-desc">
-                        Saved in your browser cache. Works offline in airplane mode.
-                    </p>
-                    <div class="tracks-container" id="offline-tracks-container" style="margin-top: 16px;">
-                        <!-- Populated dynamically -->
+
+                    <div class="ios-section" style="margin-top: 8px;">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">Downloaded via Torrent (<code>G:\Music\Downloads</code>)</h2>
+                        </div>
+                        <div class="tracks-container" id="torrent-downloads-container" style="margin-top: 12px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div class="ios-section" style="margin-top: 32px;">
+                        <div class="ios-section-header">
+                            <h2 class="ios-section-title">Saved in Browser Cache (Offline / Airplane Mode)</h2>
+                            <span class="ios-sub-count" id="offline-stats-summary">0 songs • 0 MB</span>
+                        </div>
+                        <div class="tracks-container" id="offline-tracks-container" style="margin-top: 12px;">
+                            <!-- Populated dynamically -->
+                        </div>
                     </div>
                 </section>
 
@@ -428,17 +447,22 @@
                 <section id="tab-downloads" class="tab-panel">
                     <div class="ios-page-header">
                         <h1 class="ios-large-title">Search & Download</h1>
-                    <!-- Storage Quota & Apple Music Offline Reconstructor -->
+                    <!-- Storage Quota & Apple Music Missing Album Reconstructor -->
                     <div class="reconstructor-dashboard-card" style="margin-bottom: 24px;">
                         <div class="reconstructor-header">
                             <div class="reconstructor-title-group">
-                                <h2 class="ios-section-title" style="margin: 0; font-size: 18px;">Apple Music Offline Reconstructor</h2>
+                                <h2 class="ios-section-title" style="margin: 0; font-size: 18px;">Apple Music Playlist Reconstructor</h2>
                                 <span class="reconstructor-badge">G:\Music (35 GB Hard Cap)</span>
                             </div>
-                            <button id="btn-scan-apple-music" class="ios-pill-btn btn-secondary-pill">
-                                <span id="btn-scan-apple-icon"></span>
-                                <span id="btn-scan-apple-text">🛡️ Safe Clone & Scan</span>
-                            </button>
+                            <div class="reconstructor-actions">
+                                <button id="btn-scan-apple-music" class="ios-pill-btn btn-secondary-pill">
+                                    <span id="btn-scan-apple-icon"></span>
+                                    <span id="btn-scan-apple-text">🛡️ Refresh Snapshot</span>
+                                </button>
+                                <button id="btn-post-process-metadata" class="ios-pill-btn btn-secondary-pill" title="Tag downloaded files with MusicBrainz">
+                                    <span>✨ MusicBrainz Tagging</span>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Storage Quota Bar -->
@@ -457,71 +481,41 @@
                             <span>🔒 Snapshot location: <code>G:\Music\AppleMusic_Backup</code> (Original Apple Music files protected)</span>
                         </div>
 
-                        <!-- Playlist Selector & Match Engine -->
-                        <div class="reconstructor-controls-row">
-                            <div class="reconstructor-select-wrap">
-                                <label for="select-apple-playlist">Select Playlist to Reconstruct:</label>
-                                <select id="select-apple-playlist" class="filter-select-styled" style="width: 100%;">
-                                    <option value="">Scan Apple Music first or select a playlist...</option>
+                        <!-- Unified Playlist Selector (Auto-searches Missing Albums on change) -->
+                        <div class="reconstructor-playlist-bar">
+                            <label for="select-apple-playlist" class="reconstructor-label">Select an Apple Music Playlist — missing albums are detected & matched automatically:</label>
+                            <div class="reconstructor-select-row">
+                                <select id="select-apple-playlist" class="filter-select-styled" style="flex: 1;">
+                                    <option value="">Choose a playlist to find missing albums...</option>
                                 </select>
+                                <button id="btn-find-missing" class="ios-pill-btn btn-secondary-pill" disabled title="Re-scan selected playlist for missing albums">
+                                    <span>🔄 Match Playlist</span>
+                                </button>
                             </div>
-                            <button id="btn-match-playlist" class="ios-pill-btn btn-primary-pill" style="align-self: flex-end;" disabled>
-                                <span>🔍 Match Releases (128k/192k)</span>
-                            </button>
-                            <button id="btn-find-missing" class="ios-pill-btn btn-secondary-pill" style="align-self: flex-end;" disabled>
-                                <span>🧩 Find Missing Albums</span>
-                            </button>
                         </div>
 
-                        <!-- Missing-track Suggestions -->
+                        <!-- Missing-Album Suggestions & Auto-Matched Releases -->
                         <div class="suggestions-panel" id="suggestions-panel" style="display: none;">
                             <div class="suggestions-header">
-                                <h3 class="suggestions-title">Suggested Downloads <span id="suggestions-summary" class="suggestions-summary">0 albums</span></h3>
+                                <div>
+                                    <h3 class="suggestions-title">
+                                        <span>Missing Albums</span>
+                                        <span id="suggestions-summary" class="suggestions-summary">0 albums</span>
+                                    </h3>
+                                    <div class="suggestions-meta" id="suggestions-meta"></div>
+                                </div>
                                 <div class="reconstructor-actions">
-                                    <button id="btn-find-releases" class="ios-pill-btn btn-primary-pill">
-                                        <span>🔎 Find Releases (10)</span>
+                                    <button id="btn-find-releases" class="ios-pill-btn btn-secondary-pill" title="Re-search checked albums on Jackett & qBit plugins">
+                                        <span>🔎 Re-search Checked</span>
                                     </button>
-                                    <button id="btn-queue-suggestions" class="ios-pill-btn btn-primary-pill" disabled>
-                                        <span>📥 Queue Selected</span>
+                                    <button id="btn-queue-suggestions" class="ios-pill-btn btn-primary-pill" disabled title="Queue matched releases to qBittorrent">
+                                        <span>📥 Queue Matched Albums</span>
                                     </button>
                                 </div>
                             </div>
-                            <div class="suggestions-meta" id="suggestions-meta"></div>
                             <div class="suggestions-list" id="suggestions-list"></div>
                         </div>
-
-                        <!-- Match Results & Quality Confirmation Table -->
-                        <div id="reconstructor-results-container" style="display: none; margin-top: 18px;">
-                            <div class="reconstructor-results-header">
-                                <h3 style="font-size: 15px; margin: 0; color: var(--vwsq-console-text-bright);">Matched Releases (<span id="match-count-text">0/0</span>)</h3>
-                                <div class="reconstructor-actions">
-                                    <button id="btn-queue-reconstruction" class="ios-pill-btn btn-primary-pill">
-                                        <span>📥 Queue to qBittorrent</span>
-                                    </button>
-                                    <button id="btn-post-process-metadata" class="ios-pill-btn btn-secondary-pill" title="Tag with MusicBrainz">
-                                        <span>✨ MusicBrainz Tagging</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="reconstructor-table-wrap">
-                                <table class="reconstructor-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Track</th>
-                                            <th>Matched Release</th>
-                                            <th>Quality</th>
-                                            <th>Size</th>
-                                            <th>Lossless Confirmation</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="reconstructor-matches-tbody">
-                                        <!-- Populated dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
                     </div>
-
                     <!-- Enhanced Search Bar & Filter Controls -->
                     <div class="search-filter-card enhanced-search-card">
                         <div class="download-search-box-large">

@@ -2,6 +2,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 const config = require('../config');
 const { LidarrService } = require('./lidarr-service');
 
@@ -66,37 +67,112 @@ class DownloadService {
         });
     }
 
+    _getMusicTaggedIndexers() {
+        const indexersDir = 'C:\\ProgramData\\Jackett\\Indexers';
+        const tagged = [];
+        if (fs.existsSync(indexersDir)) {
+            try {
+                for (const file of fs.readdirSync(indexersDir)) {
+                    if (!file.endsWith('.json') || file.endsWith('.bak')) continue;
+                    try {
+                        const entries = JSON.parse(fs.readFileSync(path.join(indexersDir, file), 'utf8').replace(/^\uFEFF/, ''));
+                        if (!Array.isArray(entries)) continue;
+                        const tagEntry = entries.find(e => e && e.id === 'tags');
+                        const val = (tagEntry && typeof tagEntry.value === 'string') ? tagEntry.value : '';
+                        const tags = val.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+                        if (tags.includes('music')) {
+                            tagged.push(file.replace(/\.json$/i, ''));
+                        }
+                    } catch (_) {}
+                }
+            } catch (_) {}
+        }
+        return tagged.length > 0 ? tagged : ['knaben', 'thepiratebay', 'limetorrents', 'torrentdownload', 'therarbg'];
+    }
+
+    _searchQbitPlugin(engine, query, { timeout = 8000 } = {}) {
+        return new Promise((resolve) => {
+            const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Administrator\\AppData\\Local';
+            const novaScript = path.join(localAppData, 'qBittorrent', 'nova3', 'nova2.py');
+            if (!fs.existsSync(novaScript)) return resolve([]);
+
+            execFile('python', [novaScript, engine, 'all', query], { timeout, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+                if (!stdout) return resolve([]);
+                const items = [];
+                for (const line of stdout.split(/\r?\n/)) {
+                    const parts = line.trim().split('|');
+                    if (parts.length < 5) continue;
+                    const [link, rawName, sizeStr, seedsStr, leechStr] = parts;
+                    const title = rawName.replace(/%7C/g, '|').trim();
+                    const sizeBytes = parseInt(sizeStr, 10) > 0 ? parseInt(sizeStr, 10) : 0;
+                    const seeders = parseInt(seedsStr, 10) > 0 ? parseInt(seedsStr, 10) : 0;
+                    const leechers = parseInt(leechStr, 10) > 0 ? parseInt(leechStr, 10) : 0;
+                    items.push({
+                        title,
+                        tracker: engine.charAt(0).toUpperCase() + engine.slice(1),
+                        size: sizeBytes,
+                        formattedSize: this._formatBytes(sizeBytes),
+                        seeders,
+                        leechers,
+                        categoryDesc: 'Audio',
+                        publishDate: null,
+                        magnetUri: link.startsWith('magnet:') ? link : null,
+                        link: !link.startsWith('magnet:') ? link : null,
+                        source: 'qbit-plugin'
+                    });
+                }
+                resolve(items);
+            });
+        });
+    }
+
+    async _searchSingleJackettIndexer(indexerId, query, { category = 3000, timeout = 5500 } = {}) {
+        if (!this.jackettUrl || !this.jackettApiKey) return [];
+        let endpoint = `${this.jackettUrl}/api/v2.0/indexers/${encodeURIComponent(indexerId)}/results?apikey=${encodeURIComponent(this.jackettApiKey)}&Query=${encodeURIComponent(query)}`;
+        if (category && category !== 'all' && category !== '0') {
+            endpoint += `&Category=${encodeURIComponent(category)}`;
+        }
+        const res = await this._request(endpoint, { timeout });
+        if (!res.error && res.data && Array.isArray(res.data.Results)) {
+            return res.data.Results.map(item => ({
+                title: item.Title,
+                tracker: item.Tracker,
+                size: item.Size,
+                formattedSize: this._formatBytes(item.Size),
+                seeders: item.Seeders || 0,
+                leechers: item.Peers || 0,
+                categoryDesc: item.CategoryDesc || 'Audio',
+                publishDate: item.PublishDate,
+                magnetUri: item.MagnetUri || null,
+                link: item.Link || null,
+                source: 'jackett'
+            }));
+        }
+        return [];
+    }
+
     /**
-     * Get list of configured Jackett indexers on this machine.
+     * Get list of configured music indexers on this machine.
      */
     async getIndexers() {
         const indexers = [
-            { id: 'all', name: 'All Configured Indexers' },
-            { id: 'lidarr', name: 'Lidarr (OVH Media Stack)' }
+            { id: 'all', name: 'All Music Providers (Jackett + qBit + Lidarr)' },
+            { id: 'lidarr', name: 'Lidarr (OVH Media Stack)' },
+            { id: 'snowfl', name: 'Snowfl (qBittorrent Search Plugin)' }
         ];
 
-        // Check Jackett Indexers directory on Windows
-        const indexersDir = 'C:\\ProgramData\\Jackett\\Indexers';
-        if (fs.existsSync(indexersDir)) {
-            try {
-                const files = fs.readdirSync(indexersDir);
-                for (const file of files) {
-                    if (file.endsWith('.json') && !file.endsWith('.bak')) {
-                        const id = file.replace('.json', '');
-                        const cleanName = id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                        indexers.push({ id, name: cleanName });
-                    }
-                }
-            } catch (_) {}
+        for (const id of this._getMusicTaggedIndexers()) {
+            const cleanName = id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            indexers.push({ id, name: `${cleanName} (Jackett)` });
         }
 
         return indexers;
     }
 
     /**
-     * Search torrents / releases via Jackett and/or Lidarr.
+     * Search torrents / releases via Jackett, qBittorrent search plugins, and/or Lidarr.
      */
-    async searchTorrents(query, { indexer = 'all', category = 3000, filterMusic = false, timeout = 12000 } = {}) {
+    async searchTorrents(query, { indexer = 'all', category = 3000, filterMusic = false, timeout = 8000 } = {}) {
         let results = [];
 
         // If indexer is explicitly 'lidarr', search Lidarr releases only
@@ -112,44 +188,29 @@ class DownloadService {
             };
         }
 
-        // 1. Search Jackett
-        if (this.jackettUrl && this.jackettApiKey) {
-            const targetIndexer = indexer || 'all';
-            let endpoint = `${this.jackettUrl}/api/v2.0/indexers/${encodeURIComponent(targetIndexer)}/results?apikey=${encodeURIComponent(this.jackettApiKey)}&Query=${encodeURIComponent(query)}`;
-
-            if (category && category !== 'all' && category !== '0') {
-                endpoint += `&Category=${encodeURIComponent(category)}`;
+        // If indexer is explicitly 'snowfl', search qBittorrent snowfl plugin
+        if (indexer === 'snowfl') {
+            results = await this._searchQbitPlugin('snowfl', query, { timeout });
+        } else if (indexer === 'all' || indexer === 'tag:music') {
+            const taggedIndexers = this._getMusicTaggedIndexers();
+            const perIndexerTimeout = Math.min(timeout, 4500);
+            const batches = await Promise.all(
+                taggedIndexers.map(id =>
+                    this._searchSingleJackettIndexer(id, query, { category, timeout: perIndexerTimeout })
+                )
+            );
+            for (const batch of batches) {
+                if (Array.isArray(batch)) results.push(...batch);
             }
-
-            const res = await this._request(endpoint, { timeout });
-            if (!res.error && res.data && Array.isArray(res.data.Results)) {
-                const jackettResults = res.data.Results.map(item => ({
-                    title: item.Title,
-                    tracker: item.Tracker,
-                    size: item.Size,
-                    formattedSize: this._formatBytes(item.Size),
-                    seeders: item.Seeders || 0,
-                    leechers: item.Peers || 0,
-                    categoryDesc: item.CategoryDesc || 'Audio',
-                    publishDate: item.PublishDate,
-                    magnetUri: item.MagnetUri || null,
-                    link: item.Link || null,
-                    source: 'jackett'
-                }));
-                results.push(...jackettResults);
+            // Fallback to qBittorrent search plugin (snowfl) if Jackett returned few results
+            if (results.length < 3) {
+                const snowflResults = await this._searchQbitPlugin('snowfl', query, { timeout: 6000 });
+                results.push(...snowflResults);
             }
+        } else {
+            const batch = await this._searchSingleJackettIndexer(indexer, query, { category, timeout });
+            results.push(...batch);
         }
-
-        // 2. If indexer is 'all', also query Lidarr releases as supplemental provider
-        if (indexer === 'all') {
-            try {
-                const lidarrRes = await this.lidarrService.searchReleases(query);
-                if (lidarrRes && Array.isArray(lidarrRes.results)) {
-                    results.push(...lidarrRes.results);
-                }
-            } catch (_) {}
-        }
-
         // Server-side music filter fallback
         if (filterMusic) {
             const musicRegex = /\b(flac|mp3|320kbps|320|lossless|alac|aac|wav|ogg|vinyl|cd|discography|album|ep|single|remaster|soundtrack|ost|audio)\b/i;

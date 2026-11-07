@@ -198,11 +198,22 @@ function extractAudioFileMetadata(filePath) {
 
     const cleanTitle = cleanSongFilename(filename);
 
+    const isIgnoredDir = (dir) => !dir || ['music', 'root', 'downloads', 'unknown album'].includes(dir.toLowerCase()) || /^[a-z]:$/i.test(dir);
+    let inferredArtist = !isIgnoredDir(artistFolder) ? artistFolder : '';
+    let inferredAlbum = !isIgnoredDir(albumFolder) ? albumFolder : '';
+
+    // If inside Downloads/<Artist - Album>/track.mp3, split the release folder name
+    if (!inferredArtist && inferredAlbum && inferredAlbum.includes(' - ')) {
+        const splitParts = inferredAlbum.split(' - ');
+        inferredArtist = splitParts[0].trim();
+        inferredAlbum = splitParts.slice(1).join(' - ').replace(/\s*[\[(](?:19|20)\d{2}[\])].*$/i, '').replace(/\s*(?:320|192|128)[_\s]*kbps.*$/i, '').trim();
+    }
+
     const meta = {
         filePath,
         filename,
-        inferredArtist: (artistFolder && artistFolder !== 'Music' && artistFolder !== 'root') ? artistFolder : '',
-        inferredAlbum: (albumFolder && albumFolder.toLowerCase() !== 'unknown album' && albumFolder !== 'Music') ? albumFolder : '',
+        inferredArtist,
+        inferredAlbum,
         inferredTitle: cleanTitle,
         embeddedTitle: '',
         embeddedArtist: '',

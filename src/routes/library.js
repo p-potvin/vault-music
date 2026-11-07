@@ -4,11 +4,12 @@ function createLibraryRouter(libraryService) {
     const router = express.Router();
 
     router.get('/tracks', (req, res) => {
-        const { query, artist, album, page, limit, sort, order } = req.query;
+        const { query, artist, album, downloaded, page, limit, sort, order } = req.query;
         const data = libraryService.listTracks({
             query,
             artist,
             album,
+            downloaded: downloaded === 'true' || downloaded === true,
             page: page ? parseInt(page, 10) : 1,
             limit: limit ? parseInt(limit, 10) : 100,
             sort: sort || 'title',
