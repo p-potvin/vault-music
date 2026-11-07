@@ -8,7 +8,7 @@ const { generateAlbumNfo, generateArtistNfo } = require('../musicbrainz/nfo-gene
 
 class MetadataService {
     constructor(options = {}) {
-        this.localDb = new LocalMusicBrainzDb(options.localDbPath || config.LOCAL_DB_PATH);
+        this.localDb = new LocalMusicBrainzDb(options.raggaeUrl || config.RAGGAE_URL);
         this.client = new MusicBrainzClient({
             host: options.host || config.MUSICBRAINZ_HOST,
             rps: options.rps || config.MUSICBRAINZ_RPS
@@ -48,8 +48,16 @@ class MetadataService {
         let source = 'none';
 
         if (this.localDb.isAvailable) {
-            result = this.localDb.searchRecording(searchParams);
-            if (result) source = 'local_db';
+            result = await this.localDb.searchRecording(searchParams);
+            if (result) {
+                source = 'local_db';
+                // vault-raggae's dump has no release dates or track positions: the file's own tags fill them.
+                if (!result.releaseYear && fileMeta.embeddedYear) result.releaseYear = fileMeta.embeddedYear;
+                if (result.trackNumber == null && fileMeta.embeddedTrack) {
+                    const n = parseInt(fileMeta.embeddedTrack, 10);
+                    if (n > 0) result.trackNumber = n;
+                }
+            }
         }
 
         // Local DB matches are recording-level only (no releaseMbid /
