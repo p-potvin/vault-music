@@ -78,13 +78,22 @@ async function testFallbacksAndBackoff() {
     assert.strictEqual(r.releaseMbid, null);
     assert.strictEqual(n, 3);
 
-    // Gateway down: one failed request, then no more until the back-off ends.
+    // Gateway down: the request and its one retry fail, then no more until the back-off ends.
     let tries = 0;
-    const down = new LocalMusicBrainzDb('http://gw', { fetchImpl: async () => { tries++; throw new Error('ECONNREFUSED'); } });
+    const down = new LocalMusicBrainzDb('http://gw', { retryDelayMs: 0, fetchImpl: async () => { tries++; throw new Error('ECONNREFUSED'); } });
     assert.strictEqual(await down.searchRecording({ title: 'A', artist: 'B' }), null);
     assert.strictEqual(await down.searchRecording({ title: 'C', artist: 'D' }), null);
-    assert.strictEqual(tries, 1);
+    assert.strictEqual(tries, 2);
     assert.strictEqual(down.isAvailable, false);
+
+    // A blip (one refused connection) is retried and the lookup still answers; no back-off.
+    let blips = 0;
+    const flaky = new LocalMusicBrainzDb('http://gw', { retryDelayMs: 0, fetchImpl: async (url, init) => {
+        if (blips++ === 0) throw new Error('ECONNRESET');
+        return { ok: true, status: 200, json: async () => ({ columns: REC, rows: [['x1', 'A', 1000, 'B']] }) };
+    } });
+    assert.strictEqual((await flaky.searchRecording({ title: 'A', artist: 'B' })).recordingMbid, 'x1');
+    assert.strictEqual(flaky.isAvailable, true);
 
     // A SQL error (400) is not an outage.
     const bad = new LocalMusicBrainzDb('http://gw', { fetchImpl: fakeGateway(() => ({ status: 400, body: { error: { type: 'OperationalError', message: 'x' } } })).fetchImpl });

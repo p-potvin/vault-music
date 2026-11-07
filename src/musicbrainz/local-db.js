@@ -9,13 +9,17 @@
  *   GET  /v1/catalog/search    ?category=music                   the release for an album name (MBID, cover art)
  *
  * With the release found, `metadata-service` no longer needs musicbrainz.org for cover art, album and year. Track
- * numbers are not looked up here (the dump has no index on tracks.recording_id). If the gateway does not answer,
- * the lookup is skipped for RETRY_MS and the caller falls back to musicbrainz.org as before.
+ * numbers are not looked up here (the dump has no index on tracks.recording_id). If the gateway does not answer, the
+ * request is tried once more after RETRY_DELAY_MS; if that fails too, the gateway is skipped for RETRY_MS (each
+ * lookup in that window goes to musicbrainz.org at once, so a batch is not stalled) and asked again after it.
+ * No token for musicbrainz.org: its ws/2 limit is ~1 request/s per IP whoever asks (the Live Data Feed token only
+ * opens the feed's downloads; checked Sat 07 Nov 2026, musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting).
  */
 
 const config = require('../config');
 
 const TIMEOUT_MS = 8000;
+const RETRY_DELAY_MS = 2000;
 const RETRY_MS = 60 * 1000;
 
 /** Lower-case, accents and punctuation out, for comparing names. */
@@ -34,10 +38,11 @@ function cleanTitle(s) {
 }
 
 class LocalMusicBrainzDb {
-    constructor(baseUrl = config.RAGGAE_URL, { fetchImpl } = {}) {
+    constructor(baseUrl = config.RAGGAE_URL, { fetchImpl, retryDelayMs = RETRY_DELAY_MS } = {}) {
         this.baseUrl = String(baseUrl || '').replace(/\/+$/, '');
         this.dbPath = `${this.baseUrl}/v1/sql/musicbrainz`; // shown in /status as before
         this.fetch = fetchImpl || globalThis.fetch;
+        this.retryDelayMs = retryDelayMs;
         this.downUntil = 0;
         this.lastError = null;
     }
@@ -47,7 +52,21 @@ class LocalMusicBrainzDb {
         return Boolean(this.baseUrl) && Date.now() >= this.downUntil;
     }
 
+    /**
+     * One gateway request; a connection error or a 5xx is tried once more after RETRY_DELAY_MS (a gateway restart
+     * takes ~20 s, a blip less), then the caller's lookup is given up and the back-off starts.
+     */
     async _request(route, init) {
+        try {
+            return await this._requestOnce(route, init);
+        } catch (err) {
+            if (err.status && err.status < 500) throw err;
+            await new Promise(r => setTimeout(r, this.retryDelayMs));
+            return this._requestOnce(route, init);
+        }
+    }
+
+    async _requestOnce(route, init) {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
         try {
