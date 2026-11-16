@@ -56,7 +56,7 @@ class PostDownloadProcessor {
                 const album = tags.effectiveAlbum || '';
 
                 // MusicBrainz through vault-raggae first
-                let mbData = await this.localMbDb.searchRecording({ title, artist, album });
+                let mbData = await this.localMbDb.searchRecording({ title, artist, album, track: tags.embeddedTrack });
 
                 // If not found locally, query live MusicBrainz
                 if (!mbData) {

@@ -41,7 +41,8 @@ class MetadataService {
         const searchParams = {
             title: fileMeta.effectiveTitle,
             artist: fileMeta.effectiveArtist,
-            album: fileMeta.effectiveAlbum
+            album: fileMeta.effectiveAlbum,
+            track: fileMeta.embeddedTrack
         };
 
         let result = null;
@@ -51,7 +52,7 @@ class MetadataService {
             result = await this.localDb.searchRecording(searchParams);
             if (result) {
                 source = 'local_db';
-                // vault-raggae's dump has no release dates or track positions: the file's own tags fill them.
+                // A recording with no track in the reference has no date or position: the file's own tags fill them.
                 if (!result.releaseYear && fileMeta.embeddedYear) result.releaseYear = fileMeta.embeddedYear;
                 if (result.trackNumber == null && fileMeta.embeddedTrack) {
                     const n = parseInt(fileMeta.embeddedTrack, 10);
@@ -60,10 +61,9 @@ class MetadataService {
             }
         }
 
-        // Local DB matches are recording-level only (no releaseMbid /
-        // releaseGroupMbid, so no cover art can be resolved). Enrich through
-        // the remote API whenever release info is missing so artwork,
-        // album, year and track number can populate.
+        // A local match without a release (a recording on no track, and no
+        // catalog release for the album) cannot resolve cover art: ask the
+        // remote API then, so artwork, album, year and track number populate.
         if (!result || (!result.releaseMbid && !result.releaseGroupMbid)) {
             const remote = await this.client.searchRecording(searchParams);
             if (remote) {
@@ -190,6 +190,7 @@ class MetadataService {
                                 title: m.metadata.title,
                                 artist: m.metadata.artist,
                                 trackNumber: m.metadata.trackNumber,
+                                discNumber: m.metadata.discNumber || null,
                                 recordingMbid: m.metadata.recordingMbid
                             }))
                         };
