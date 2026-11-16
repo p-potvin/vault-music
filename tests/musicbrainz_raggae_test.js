@@ -7,7 +7,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { LocalMusicBrainzDb, cleanTitle } = require('../src/musicbrainz/local-db');
+const { LocalMusicBrainzDb, cleanTitle, rankTrack } = require('../src/musicbrainz/local-db');
 const { extractAudioFileMetadata } = require('../src/musicbrainz/tag-reader');
 
 function fakeGateway(handler) {
@@ -23,15 +23,124 @@ function fakeGateway(handler) {
 }
 
 const rows = (columns, values) => ({ body: { columns, rows: values } });
-const REC = ['recordingMbid', 'title', 'length', 'artist'];
+const REC = ['recordingId', 'recordingMbid', 'title', 'length', 'artist'];
+const TRK = ['recordingId', 'number', 'position', 'disc', 'trackCount', 'releaseMbid', 'releaseName', 'y', 'm', 'd',
+    'country', 'status', 'releaseArtist', 'rgMbid', 'rgName', 'rgType', 'fy', 'fm', 'fd'];
 
-async function testLookup() {
+async function testTrackLookup() {
+    // Exact credit finds a one-off EP recording; the "feat." credit finds the album one. The album track wins.
     const g = fakeGateway((url, body) => {
         if (url.includes('/v1/sql/musicbrainz')) {
+            const sql = body.sql.replace(/\s+/g, ' ');
+            if (sql.includes('FROM releases rl')) return rows(['x'], []); // no release named like the tag
+            if (sql.includes('FROM artist_credits ac JOIN recordings')) {
+                return rows(REC, [[11, 'ep-rec', 'Havana', 217000, 'Camila Cabello']]);
+            }
+            if (sql.includes("WHERE r.name = ? COLLATE NOCASE AND ac.name LIKE ?")) {
+                assert.deepStrictEqual(body.params, ['Havana', '%Camila Cabello%']);
+                return rows(REC, [[11, 'ep-rec', 'Havana', 217000, 'Camila Cabello'],
+                    [22, 'main-rec', 'Havana', 217000, 'Camila Cabello feat. Young Thug']]);
+            }
+            if (sql.includes('FROM tracks t')) {
+                assert.deepStrictEqual(body.params, [11, 22]);
+                return rows(TRK, [
+                    [11, '2', 2, 1, 7, 'rel-ep', 'New Music Daily Presents', 2019, 1, 1, 'AE', 'Official', 'Camila Cabello', 'rg-ep', 'New Music Daily Presents', 'EP', 2019, null, null],
+                    [22, '1', 1, 1, 2, 'rel-single', 'Havana', 2017, 8, 3, 'XW', 'Official', 'Camila Cabello feat. Young Thug', 'rg-single', 'Havana', 'Single', 2017, 8, 3],
+                    [22, '10', 10, 1, 40, 'rel-comp', 'Bravo Hits 99', 2017, 11, 1, 'DE', 'Official', 'Various Artists', 'rg-comp', 'Bravo Hits 99', 'Album', 2017, 11, 1],
+                    [22, '4', 4, 1, 11, 'rel-reissue', 'Camila', 2023, null, null, 'US', 'Official', 'Camila Cabello', 'rg-camila', 'Camila', 'Album', 2018, 1, 12],
+                    [22, 'A4', 4, 2, 11, 'rel-lp', 'Camila', 2018, 1, 12, 'US', 'Official', 'Camila Cabello', 'rg-camila', 'Camila', 'Album', 2018, 1, 12]
+                ]);
+            }
+            if (sql.includes('FROM recordings r JOIN artist_credit_names')) {
+                assert.deepStrictEqual(body.params, [22]);
+                return rows(['gid'], [['artist-camila']]);
+            }
+            throw new Error('unexpected SQL ' + sql);
+        }
+        if (url.includes('/v1/catalog/search')) {
+            return { body: { results: [{ catalog_id: 'mb:rel:x', title: 'Camila', subtitle_or_artist: 'Camila Cabello',
+                genres: ['Album', 'pop'], external_ids: { mbid: 'x' } }] } };
+        }
+        throw new Error('unexpected URL ' + url);
+    });
+    const db = new LocalMusicBrainzDb('http://gw', { fetchImpl: g.fetchImpl });
+    const r = await db.searchRecording({ title: 'Havana', artist: 'Camila Cabello', album: 'Camila' });
+    assert.strictEqual(r.recordingMbid, 'main-rec');
+    assert.strictEqual(r.album, 'Camila');
+    // Both "Camila" tracks share the group's first date; the 2018 pressing beats the 2023 reissue. Its vinyl side
+    // number "A4" falls back to the position.
+    assert.strictEqual(r.releaseGroupMbid, 'rg-camila');
+    assert.strictEqual(r.releaseMbid, 'rel-lp');
+    assert.strictEqual(r.releaseDate, '2018-01-12');
+    assert.strictEqual(r.originalYear, '2018');
+    assert.strictEqual(r.trackNumber, 4);
+    assert.strictEqual(r.discNumber, 2);
+    assert.strictEqual(r.artistMbid, 'artist-camila');
+    assert.deepStrictEqual(r.genres, ['pop']); // from the catalog; its release fields are not taken
+    assert.strictEqual(r.releaseType, 'Album');
+
+    // The album the file is tagged with beats everything else, even a compilation.
+    const keyComp = rankTrack({ releaseName: 'Bravo Hits 99', releaseArtist: 'Various Artists', status: 'Official', rgType: 'Album', fy: 2017 },
+        { album: 'Bravo Hits 99', artist: 'Camila Cabello' });
+    const keyOwn = rankTrack({ releaseName: 'Camila', releaseArtist: 'Camila Cabello', status: 'Official', rgType: 'Album', fy: 2018 },
+        { album: 'Bravo Hits 99', artist: 'Camila Cabello' });
+    assert.ok(keyComp[0] < keyOwn[0]);
+    // Undated releases sort after dated ones of the same rank; "Official" beats a bootleg.
+    const k = (o) => rankTrack({ releaseArtist: 'Queen', status: 'Official', rgType: 'Album', ...o }, { artist: 'Queen' });
+    assert.ok(k({ fy: 1975 })[4] < k({})[4]);
+    assert.ok(k({ fy: 1975 })[2] < k({ fy: 1975, status: 'Bootleg' })[2]);
+    console.log('✓ [PASS] Candidates from exact + "feat." credits; best track: own album, official, earliest; genres from the catalog.');
+}
+
+async function testAlbumFirst() {
+    // The file's album settles the recording: typographic punctuation in MusicBrainz, a near title at the tagged
+    // track number, another artist's release of the same name left out.
+    const A = ['recordingId', 'number', 'position', 'trackName', 'disc', 'trackCount', 'releaseMbid', 'releaseName', 'y', 'm', 'd',
+        'country', 'status', 'releaseArtist', 'rgMbid', 'rgName', 'rgType', 'fy', 'fm', 'fd', 'recordingMbid', 'title', 'length', 'artist'];
+    const album = (n, trackName, rel, y, relArtist, recMbid) =>
+        [n, String(n), n, trackName, 1, 12, rel, "The Freewheelin' Bob Dylan", y, 5, 27, 'US', 'Official', relArtist, 'rg-fw', "The Freewheelin' Bob Dylan", 'Album', 1963, 5, 27, recMbid, trackName, 400000, relArtist];
+    const g = fakeGateway((url, body) => {
+        if (url.includes('/v1/catalog/search')) return { body: { results: [] } };
+        if (body.sql.includes('FROM releases rl')) {
+            assert.deepStrictEqual(body.params, ["The Freewheelin' Bob Dylan", 'The Freewheelin’ Bob Dylan']);
+            return rows(A, [
+                album(6, 'A Hard Rain’s A‐Gonna Fall', 'rel-reissue', 1990, 'Bob Dylan', 'rec-hr'),
+                album(6, 'A Hard Rain’s A‐Gonna Fall', 'rel-1963', 1963, 'Bob Dylan', 'rec-hr'),
+                album(6, 'A Hard Rain’s A‐Gonna Fall', 'rel-cover', 1960, 'Someone Else', 'rec-cover'),
+                album(5, 'Whispers (I Hear Your)', 'rel-1963', 1963, 'Bob Dylan', 'rec-wh')
+            ]);
+        }
+        if (body.sql.includes('artist_credit_names')) return rows(['gid'], [['artist-dylan']]);
+        return rows(REC, []); // the exact-title queries, reached only when the album gives nothing
+    });
+    const db = new LocalMusicBrainzDb('http://gw', { fetchImpl: g.fetchImpl });
+    const r = await db.searchRecording({ title: "A Hard Rain's A-Gonna Fall", artist: 'Bob Dylan', album: "The Freewheelin' Bob Dylan", track: '6/13' });
+    assert.strictEqual(r.recordingMbid, 'rec-hr');
+    assert.strictEqual(r.releaseMbid, 'rel-1963');
+    assert.strictEqual(r.trackNumber, 6);
+    assert.strictEqual(r.artistMbid, 'artist-dylan');
+    const w = await db.searchRecording({ title: 'Whispers (I Hear You)', artist: 'Bob Dylan', album: "The Freewheelin' Bob Dylan", track: '5' });
+    assert.strictEqual(w.recordingMbid, 'rec-wh');
+    // Same near title at another track number: not taken from the album (falls through to the exact queries).
+    assert.strictEqual(await db.searchRecording({ title: 'Whispers (I Hear You)', artist: 'Bob Dylan', album: "The Freewheelin' Bob Dylan", track: '9' }), null);
+    assert.strictEqual(db.isAvailable, true);
+    console.log('✓ [PASS] Album first: punctuation-blind title, tagged track number for a near title, other artists left out.');
+}
+
+async function testLookup() {
+    // A recording on no track: the release comes from the catalog, as before the reference was rebuilt.
+    const g = fakeGateway((url, body) => {
+        if (url.includes('/v1/sql/musicbrainz')) {
+            if (body.sql.includes('FROM releases rl')) {
+                assert.deepStrictEqual(body.params, ['OK Computer']);
+                return rows(['x'], []);
+            }
+            if (body.sql.includes('FROM tracks t') || body.sql.includes('artist_credit_names')) return rows(['x'], []);
             if (body.sql.includes('FROM artist_credits ac JOIN recordings')) {
                 assert.deepStrictEqual(body.params, ['Radiohead', 'Paranoid Android']);
-                return rows(REC, [['9f9c', 'Paranoid Android', 384000, 'Radiohead']]);
+                return rows(REC, [[5, '9f9c', 'Paranoid Android', 384000, 'Radiohead']]);
             }
+            if (body.sql.includes('ac.name LIKE')) return rows(REC, []);
             if (body.sql.includes('FROM releases r')) {
                 assert.deepStrictEqual(body.params, [1792]);
                 return rows(['rgMbid', 'y', 'm', 'd', 'country'], [['b1392450', 1997, 5, 21, 'GB']]);
@@ -58,7 +167,7 @@ async function testLookup() {
     assert.strictEqual(r.releaseDate, '1997-05-21');
     assert.deepStrictEqual(r.genres, ['art rock']);
     assert.strictEqual(g.calls[0].body.op, 'read');
-    console.log('✓ [PASS] Exact artist + title, then the release from the catalog.');
+    console.log('✓ [PASS] No track: exact artist + title, then the release from the catalog.');
 }
 
 async function testFallbacksAndBackoff() {
@@ -66,9 +175,10 @@ async function testFallbacksAndBackoff() {
     let n = 0;
     const g = fakeGateway((url, body) => {
         n++;
+        assert.ok(url.includes('/v1/sql/musicbrainz'), 'catalog asked without an album');
         if (body.sql.includes("r.name LIKE ? ESCAPE '!'")) {
             assert.deepStrictEqual(body.params, ['100!% Pure%', '%Some!_One%']);
-            return rows(REC, [['abc', '100% Pure Love', 1000, 'Some_One']]);
+            return rows(REC, [[7, 'abc', '100% Pure Love', 1000, 'Some_One']]);
         }
         return rows(REC, []);
     });
@@ -76,7 +186,7 @@ async function testFallbacksAndBackoff() {
     const r = await db.searchRecording({ title: '100% Pure', artist: 'Some_One' });
     assert.strictEqual(r.recordingMbid, 'abc');
     assert.strictEqual(r.releaseMbid, null);
-    assert.strictEqual(n, 3);
+    assert.strictEqual(n, 5); // exact credit, "feat.", prefix, tracks, artist MBID
 
     // Gateway down: the request and its one retry fail, then no more until the back-off ends.
     let tries = 0;
@@ -90,7 +200,7 @@ async function testFallbacksAndBackoff() {
     let blips = 0;
     const flaky = new LocalMusicBrainzDb('http://gw', { retryDelayMs: 0, fetchImpl: async (url, init) => {
         if (blips++ === 0) throw new Error('ECONNRESET');
-        return { ok: true, status: 200, json: async () => ({ columns: REC, rows: [['x1', 'A', 1000, 'B']] }) };
+        return { ok: true, status: 200, json: async () => ({ columns: REC, rows: [[1, 'x1', 'A', 1000, 'B']] }) };
     } });
     assert.strictEqual((await flaky.searchRecording({ title: 'A', artist: 'B' })).recordingMbid, 'x1');
     assert.strictEqual(flaky.isAvailable, true);
@@ -101,7 +211,7 @@ async function testFallbacksAndBackoff() {
     assert.strictEqual(bad.isAvailable, true);
     // An artist is known but nothing matched: no title-only guess (that was someone else's song).
     const noGuess = new LocalMusicBrainzDb('http://gw', { fetchImpl: fakeGateway((u, b) => {
-        assert.ok(!/WHERE r.name = ? COLLATE NOCASE LIMIT 1/.test(b.sql.replace(/s+/g, ' ')), 'title-only query with an artist');
+        assert.ok(!/WHERE r\.name = \? COLLATE NOCASE LIMIT/.test(b.sql.replace(/\s+/g, ' ')), 'title-only query with an artist');
         return rows(REC, []);
     }).fetchImpl });
     assert.strictEqual(await noGuess.searchRecording({ title: 'Cold Turkey', artist: '$uicideboy$' }), null);
@@ -189,11 +299,20 @@ async function testLive() {
     const r = await db.searchRecording({ title: 'Paranoid Android', artist: 'Radiohead', album: 'OK Computer' });
     assert.ok(r && r.recordingMbid, 'live recording');
     assert.ok(r.releaseMbid, 'live release');
-    console.log(`✓ [PASS] Live gateway: ${r.artist} - ${r.title} / ${r.album} (${r.releaseYear}) in ${Date.now() - t0} ms`);
+    assert.ok(r.trackNumber > 0, 'live track number');
+    console.log(`✓ [PASS] Live gateway: ${r.artist} - ${r.title} / ${r.album} (${r.releaseYear}) #${r.trackNumber} in ${Date.now() - t0} ms`);
+    for (const q of [{ title: 'Havana', artist: 'Camila Cabello' }, { title: 'Bohemian Rhapsody', artist: 'Queen' }]) {
+        const t1 = Date.now();
+        const x = await db.searchRecording(q);
+        assert.ok(x && x.trackNumber > 0 && x.releaseGroupMbid, `live ${q.title}`);
+        console.log(`  ${q.artist} - ${q.title}: ${x.album} [${x.releaseType}, ${x.releaseDate || x.originalYear}] #${x.trackNumber} in ${Date.now() - t1} ms`);
+    }
 }
 
 (async () => {
     console.log('=== MusicBrainz via vault-raggae & tag formats ===');
+    await testTrackLookup();
+    await testAlbumFirst();
     await testLookup();
     await testFallbacksAndBackoff();
     testTagReader();
